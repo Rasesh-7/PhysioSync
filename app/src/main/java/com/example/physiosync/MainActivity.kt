@@ -7,10 +7,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import com.example.physiosync.ui.patient.FormStatus
+import com.example.physiosync.ui.patient.PatientScreen
+import com.example.physiosync.ui.patient.PatientSessionUiState
+import com.example.physiosync.ui.patient.SessionReportData
+import com.example.physiosync.ui.patient.SessionReportScreen
 import com.example.physiosync.ui.theme.PhysioSyncTheme
 
 class MainActivity : ComponentActivity() {
@@ -19,29 +22,39 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PhysioSyncTheme {
+                var currentScreen by remember { mutableStateOf("PATIENT") }
+                var sessionState by remember { mutableStateOf(PatientSessionUiState()) }
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    when (currentScreen) {
+                        "PATIENT" -> {
+                            PatientScreen(
+                                sessionState = sessionState,
+                                onPauseClicked = {
+                                    sessionState = sessionState.copy(isPaused = !sessionState.isPaused)
+                                },
+                                onEndSessionClicked = {
+                                    currentScreen = "REPORT"
+                                },
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                        "REPORT" -> {
+                            SessionReportScreen(
+                                reportData = SessionReportData(
+                                    totalRepsCount = sessionState.targetReps,
+                                    goodRepsCount = sessionState.completedReps,
+                                    flaggedRepsCount = sessionState.targetReps - sessionState.completedReps
+                                ),
+                                onDoneClicked = {
+                                    currentScreen = "PATIENT"
+                                },
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    PhysioSyncTheme {
-        Greeting("Android")
     }
 }
