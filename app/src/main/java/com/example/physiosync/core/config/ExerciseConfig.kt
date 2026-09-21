@@ -25,7 +25,7 @@ data class ExerciseConfig(
         require(waitingMaxAngle < extensionMinAngle) { "waitingMaxAngle must be < extensionMinAngle" }
         require(extensionMinAngle < peakTargetAngle) { "extensionMinAngle must be < peakTargetAngle" }
         require(minRomAngle <= peakTargetAngle) { "minRomAngle must be <= peakTargetAngle" }
-        require(minTempoSeconds > 0) { "minTempoSeconds must be positive" }
+        require(minTempoSeconds >= 0) { "minTempoSeconds must be non-negative" }
         require(maxTempoSeconds > minTempoSeconds) { "maxTempoSeconds must be > minTempoSeconds" }
     }
 }

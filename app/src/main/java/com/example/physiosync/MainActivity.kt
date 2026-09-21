@@ -6,15 +6,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
@@ -25,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +40,7 @@ import com.example.physiosync.analysis.RepetitionCounter
 import com.example.physiosync.camera.CameraManager
 import com.example.physiosync.core.config.ExerciseConfig
 import com.example.physiosync.core.model.ExerciseState
+import com.example.physiosync.core.model.FormFlag
 import com.example.physiosync.core.model.PoseFrame
 import com.example.physiosync.core.state.SessionStateManager
 import com.example.physiosync.pose.KeypointFilter
@@ -93,12 +101,14 @@ class MainActivity : ComponentActivity() {
 
                                             if (repResult.angleResult != null) {
                                                 Log.d(
-                                                    "PhysioSyncReps",
+                                                    "PhysioSyncSession",
                                                     String.format(
                                                         Locale.US,
-                                                        "Reps: %d | Angle: %.1f° | State: %s",
+                                                        "Reps: %d (Good: %d, Flagged: %d) | Form: %s | State: %s",
                                                         sessionState.repCount,
-                                                        repResult.angleResult.angleDegrees,
+                                                        sessionState.goodRepCount,
+                                                        sessionState.flaggedRepCount,
+                                                        sessionState.currentForm.name,
                                                         repResult.transition.currentState.name
                                                     )
                                                 )
@@ -112,10 +122,11 @@ class MainActivity : ComponentActivity() {
                                     imageWidth = frameWidth,
                                     imageHeight = frameHeight,
                                     minConfidence = exerciseConfig.minKeypointConfidence,
+                                    isFrontCamera = cameraManager.isFrontCamera,
                                     modifier = Modifier.fillMaxSize()
                                 )
 
-                                // Live Repetition Counter & State Status Card
+                                // Live Repetition Counter & Form Status Card
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.TopCenter)
@@ -128,13 +139,20 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text(
-                                            text = "REPS: ${sessionState.repCount}",
-                                            color = Color(0xFF76FF03),
-                                            fontSize = 24.sp,
+                                            text = if (sessionState.isCompleted) "SESSION COMPLETED" else "REPS: ${sessionState.repCount} (Good: ${sessionState.goodRepCount})",
+                                            color = if (sessionState.isCompleted) Color(0xFF00E5FF) else Color(0xFF76FF03),
+                                            fontSize = 20.sp,
                                             fontWeight = FontWeight.Black
                                         )
 
                                         Spacer(modifier = Modifier.height(4.dp))
+
+                                        val formColor = when (sessionState.currentForm) {
+                                            FormFlag.GOOD -> Color(0xFF76FF03)
+                                            FormFlag.REDUCED_ROM -> Color(0xFFFF9100)
+                                            FormFlag.IRREGULAR_TEMPO -> Color(0xFFFF3D00)
+                                            FormFlag.LOW_CONFIDENCE -> Color(0xFFE0E0E0)
+                                        }
 
                                         val angleText = if (currentAngleResult != null) {
                                             val legLabel = if (currentAngleResult!!.isLeftLeg) "Left" else "Right"
@@ -154,17 +172,80 @@ class MainActivity : ComponentActivity() {
                                             Text(
                                                 text = angleText,
                                                 color = Color(0xFF00E5FF),
-                                                fontSize = 14.sp,
+                                                fontSize = 13.sp,
                                                 fontWeight = FontWeight.SemiBold
                                             )
-                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Spacer(modifier = Modifier.width(10.dp))
                                             Text(
                                                 text = sessionState.currentState.name,
                                                 color = stateColor,
-                                                fontSize = 14.sp,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = sessionState.currentForm.name,
+                                                color = formColor,
+                                                fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
+                                    }
+                                }
+
+                                // Interactive Session Controls Bar
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 24.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Pause / Resume Button
+                                    Button(
+                                        onClick = {
+                                            if (sessionState.isPaused) {
+                                                sessionStateManager.resumeSession()
+                                            } else {
+                                                sessionStateManager.pauseSession()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (sessionState.isPaused) Color(0xFF76FF03) else Color(0xFFFFD54F),
+                                            contentColor = Color.Black
+                                        )
+                                    ) {
+                                        Text(
+                                            text = if (sessionState.isPaused) "Resume" else "Pause",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    // End Session Button
+                                    Button(
+                                        onClick = {
+                                            if (sessionState.isSessionActive) {
+                                                sessionStateManager.endSession()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFFFF3D00),
+                                            contentColor = Color.White
+                                        )
+                                    ) {
+                                        Text(text = "End", fontWeight = FontWeight.Bold)
+                                    }
+
+                                    // Restart Button
+                                    OutlinedButton(
+                                        onClick = {
+                                            repetitionCounter.reset()
+                                            keypointFilter.reset()
+                                            sessionStateManager.startSession()
+                                        }
+                                    ) {
+                                        Text(text = "Restart", color = Color.White, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
