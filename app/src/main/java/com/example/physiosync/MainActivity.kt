@@ -30,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -120,6 +122,7 @@ class MainActivity : ComponentActivity() {
                                     imageWidth = frameWidth,
                                     imageHeight = frameHeight,
                                     minConfidence = exerciseConfig.minKeypointConfidence,
+                                    isFrontCamera = cameraManager.isFrontCamera,
                                     modifier = Modifier.fillMaxSize()
                                 )
 
@@ -195,7 +198,7 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
                                         .fillMaxWidth()
-                                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                                        .padding(horizontal = 16.dp, vertical = 24.dp),
                                     horizontalArrangement = Arrangement.SpaceEvenly,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -231,7 +234,7 @@ class MainActivity : ComponentActivity() {
                                             contentColor = Color.White
                                         )
                                     ) {
-                                        Text(text = "End Session", fontWeight = FontWeight.Bold)
+                                        Text(text = "End", fontWeight = FontWeight.Bold)
                                     }
 
                                     // Restart Button

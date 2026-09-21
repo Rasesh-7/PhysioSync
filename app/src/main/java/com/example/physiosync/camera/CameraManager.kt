@@ -18,6 +18,7 @@ import java.util.concurrent.Executors
 /**
  * Clean wrapper for CameraX lifecycle binding, preview rendering, and image analysis stream.
  * Uses `STRATEGY_KEEP_ONLY_LATEST` to guarantee low latency real-time frame processing.
+ * Defaults to Front Camera for patient selfie-guided rehabilitation monitoring.
  */
 class CameraManager(
     private val analysisExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -26,7 +27,11 @@ class CameraManager(
     val cameraState: StateFlow<CameraState> = _cameraState.asStateFlow()
 
     private var cameraProvider: ProcessCameraProvider? = null
-    private var cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+    var cameraSelector: CameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+        private set
+
+    val isFrontCamera: Boolean
+        get() = cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA
 
     fun bindCamera(
         context: Context,
