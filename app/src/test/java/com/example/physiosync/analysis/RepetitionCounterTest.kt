@@ -16,7 +16,7 @@ class RepetitionCounterTest {
 
     private lateinit var counter: RepetitionCounter
     private lateinit var stateManager: SessionStateManager
-    private val config = ExerciseConfig(minKeypointConfidence = 0.5f)
+    private val config = ExerciseConfig(minKeypointConfidence = 0.5f, minTempoSeconds = 0.0f)
 
     @Before
     fun setUp() {

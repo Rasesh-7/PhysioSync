@@ -49,6 +49,9 @@ class ExerciseStateMachine(
         var isCycleCompleted = false
         var durationSeconds = 0f
 
+        // Minimum peak angle required to recognize an intentional extension movement
+        val minPeakThreshold = (config.extensionMinAngle + 10f).coerceAtMost(config.minRomAngle)
+
         when (currentState) {
             ExerciseState.WAITING -> {
                 // Transition to EXTENDING when knee starts extending beyond threshold
@@ -60,7 +63,7 @@ class ExerciseStateMachine(
             }
 
             ExerciseState.EXTENDING -> {
-                // 1. Aborted extension: returned back to resting position before completing extension
+                // 1. Aborted extension: returned back to resting position before reaching meaningful extension
                 if (angle <= config.waitingMaxAngle) {
                     currentState = ExerciseState.WAITING
                     peakAngle = 0f
@@ -70,8 +73,8 @@ class ExerciseStateMachine(
                     if (angle > peakAngle) peakAngle = angle
                     currentState = ExerciseState.PEAK
                 }
-                // 3. Reached local peak and started returning down
-                else if (angle < (peakAngle - config.hysteresisDegrees) && peakAngle >= config.extensionMinAngle) {
+                // 3. Reached local peak and started returning down (must have reached at least minPeakThreshold)
+                else if (angle < (peakAngle - config.hysteresisDegrees) && peakAngle >= minPeakThreshold) {
                     currentState = ExerciseState.PEAK
                 }
                 // 4. Still extending upwards
