@@ -1,6 +1,7 @@
 package com.example.physiosync.ui.dashboard
 
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,9 +20,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +37,7 @@ import com.example.physiosync.ui.dashboard.components.ClinicianControlBar
 import com.example.physiosync.ui.dashboard.components.ClinicianDarkBg
 import com.example.physiosync.ui.dashboard.components.ClinicianGoodGreen
 import com.example.physiosync.ui.dashboard.components.ClinicianHeader
+import com.example.physiosync.ui.dashboard.components.ClinicianReportDialog
 import com.example.physiosync.ui.dashboard.components.ClinicianWarningAmber
 import com.example.physiosync.ui.dashboard.components.ExerciseStatePipeline
 import com.example.physiosync.ui.dashboard.components.FormStatusBadge
@@ -39,12 +45,14 @@ import com.example.physiosync.ui.dashboard.components.KneeAngleTelemetryCard
 import com.example.physiosync.ui.dashboard.components.RealTimeEventLog
 import com.example.physiosync.ui.dashboard.components.RepetitionBreakdownList
 import com.example.physiosync.ui.dashboard.components.TelemetryMetricCard
+import com.example.physiosync.ui.dashboard.export.ClinicianReportExporter
 
 /**
- * Full Clinician Dashboard / Coach View Screen (Task 13 & Task 16).
+ * Full Clinician Dashboard / Coach View Screen (Task 13, 16 & 17).
  * Features responsive adaptive layout for:
  * - Portrait view on phone
  * - Widescreen 2-column view optimized for Office Kit laptop screen mirroring (Green Light)
+ * - Task 17 Office Kit clinical report export and shared clipboard sync.
  */
 @Composable
 fun ClinicianDashboardScreen(
@@ -52,10 +60,14 @@ fun ClinicianDashboardScreen(
     onToggleView: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val sessionState = uiState.sessionState
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val scrollState = rememberScrollState()
+
+    var showReportDialog by remember { mutableStateOf(false) }
+
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -181,6 +193,9 @@ fun ClinicianDashboardScreen(
                             onToggleView = onToggleView,
                             onTogglePresentation = {
                                 viewModel.togglePresentationMode()
+                            },
+                            onExportReport = {
+                                showReportDialog = true
                             }
                         )
                     }
@@ -292,6 +307,9 @@ fun ClinicianDashboardScreen(
                         onToggleView = onToggleView,
                         onTogglePresentation = {
                             viewModel.togglePresentationMode()
+                        },
+                        onExportReport = {
+                            showReportDialog = true
                         }
                     )
                 }
@@ -299,5 +317,32 @@ fun ClinicianDashboardScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
+
+        // Task 17: Office Kit Clinical Report Export Dialog
+        if (showReportDialog) {
+            val reportContent = ClinicianReportExporter.formatMarkdownReport(
+                sessionState = sessionState,
+                targetMinAngle = uiState.targetMinAngle,
+                targetMaxAngle = uiState.targetMaxAngle
+            )
+
+            ClinicianReportDialog(
+                reportText = reportContent,
+                onDismiss = { showReportDialog = false },
+                onCopyToClipboard = {
+                    val copied = ClinicianReportExporter.copyToClipboard(context, reportContent)
+                    if (copied) {
+                        Toast.makeText(context, "Report copied! (Office Kit Sync Active)", Toast.LENGTH_SHORT).show()
+                    }
+                    showReportDialog = false
+                },
+                onShare = {
+                    val shareIntent = ClinicianReportExporter.createShareIntent(reportContent)
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Clinical Report"))
+                    showReportDialog = false
+                }
+            )
+        }
     }
 }
+

@@ -4,6 +4,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -584,6 +586,7 @@ fun ClinicianControlBar(
     onRestart: () -> Unit,
     onToggleView: () -> Unit,
     onTogglePresentation: () -> Unit = {},
+    onExportReport: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -600,10 +603,18 @@ fun ClinicianControlBar(
             onClick = onToggleView,
             shape = RoundedCornerShape(10.dp)
         ) {
-            Text("Camera View", color = ClinicianAccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("Camera", color = ClinicianAccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
 
-        // Presentation / Full Screen Mode Toggle
+        // Export Report (Task 17 Office Kit Transfer)
+        OutlinedButton(
+            onClick = onExportReport,
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text("Export", color = ClinicianGoodGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+
+        // Presentation Mode Toggle
         OutlinedButton(
             onClick = onTogglePresentation,
             shape = RoundedCornerShape(10.dp)
@@ -642,7 +653,7 @@ fun ClinicianControlBar(
                 contentColor = Color.White
             )
         ) {
-            Text("End Session", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("End", fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
 
         // Restart
@@ -654,3 +665,126 @@ fun ClinicianControlBar(
         }
     }
 }
+
+@Composable
+fun ClinicianReportDialog(
+    reportText: String,
+    onDismiss: () -> Unit,
+    onCopyToClipboard: () -> Unit,
+    onShare: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Card(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = ClinicianDarkBg),
+            border = CardDefaults.outlinedCardBorder().copy(
+                brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(18.dp)
+                    .fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "OFFICE KIT REPORT EXPORT",
+                            color = ClinicianAccentCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = "Clinical Session Summary",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Scrollable text preview
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .background(Color(0xFF0F172A), RoundedCornerShape(10.dp))
+                        .border(1.dp, ClinicianCardBorder, RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                        .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                ) {
+                    Text(
+                        text = reportText,
+                        color = Color(0xFFCBD5E1),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = 14.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onCopyToClipboard,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ClinicianPurple,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "Copy (Office Kit)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = onShare,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ClinicianGoodGreen,
+                            contentColor = Color.Black
+                        )
+                    ) {
+                        Text(
+                            text = "Share File",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Close", color = ClinicianMutedText, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
