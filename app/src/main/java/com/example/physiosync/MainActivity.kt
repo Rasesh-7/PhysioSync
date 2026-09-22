@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,13 +49,21 @@ import com.example.physiosync.pose.PoseDetectorManager
 import com.example.physiosync.ui.camera.CameraPermissionHandler
 import com.example.physiosync.ui.camera.CameraPreview
 import com.example.physiosync.ui.camera.SkeletonOverlay
+import com.example.physiosync.ui.patient.FormStatus
+import com.example.physiosync.ui.patient.PatientScreen
+import com.example.physiosync.ui.patient.PatientSessionUiState
+import com.example.physiosync.ui.patient.RepDetail
+import com.example.physiosync.ui.patient.SessionReportData
+import com.example.physiosync.ui.patient.SessionReportScreen
 import com.example.physiosync.ui.theme.PhysioSyncTheme
+import com.example.physiosync.voice.VoiceCoachManager
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var cameraManager: CameraManager
     private lateinit var poseDetectorManager: PoseDetectorManager
+    private lateinit var voiceCoachManager: VoiceCoachManager
     private val exerciseConfig = ExerciseConfig()
     private val keypointFilter = KeypointFilter(exerciseConfig)
     private val sessionStateManager = SessionStateManager()
@@ -66,188 +75,154 @@ class MainActivity : ComponentActivity() {
 
         cameraManager = CameraManager()
         poseDetectorManager = PoseDetectorManager()
+        voiceCoachManager = VoiceCoachManager(this)
+        voiceCoachManager.observeSessionEvents(sessionStateManager, lifecycleScope)
+
         sessionStateManager.startSession()
 
         setContent {
             PhysioSyncTheme {
+                var currentScreen by remember { mutableStateOf("PATIENT") }
+                val sessionState by sessionStateManager.state.collectAsState()
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
-                        CameraPermissionHandler {
-                            var currentPoseFrame by remember { mutableStateOf<PoseFrame?>(null) }
-                            var currentAngleResult by remember { mutableStateOf<JointAngleResult?>(null) }
-                            var frameWidth by remember { mutableStateOf(480f) }
-                            var frameHeight by remember { mutableStateOf(640f) }
+                        when (currentScreen) {
+                            "PATIENT" -> {
+                                CameraPermissionHandler {
+                                    var currentPoseFrame by remember { mutableStateOf<PoseFrame?>(null) }
+                                    var currentAngleResult by remember { mutableStateOf<JointAngleResult?>(null) }
+                                    var frameWidth by remember { mutableStateOf(480f) }
+                                    var frameHeight by remember { mutableStateOf(640f) }
 
-                            val sessionState by sessionStateManager.state.collectAsState()
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        CameraPreview(
+                                            cameraManager = cameraManager,
+                                            onFrameAnalyzed = { imageProxy ->
+                                                val isRotated = imageProxy.imageInfo.rotationDegrees == 90 || imageProxy.imageInfo.rotationDegrees == 270
+                                                frameWidth = if (isRotated) imageProxy.height.toFloat() else imageProxy.width.toFloat()
+                                                frameHeight = if (isRotated) imageProxy.width.toFloat() else imageProxy.height.toFloat()
 
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                CameraPreview(
-                                    cameraManager = cameraManager,
-                                    onFrameAnalyzed = { imageProxy ->
-                                        val isRotated = imageProxy.imageInfo.rotationDegrees == 90 || imageProxy.imageInfo.rotationDegrees == 270
-                                        frameWidth = if (isRotated) imageProxy.height.toFloat() else imageProxy.width.toFloat()
-                                        frameHeight = if (isRotated) imageProxy.width.toFloat() else imageProxy.height.toFloat()
+                                                poseDetectorManager.processImageProxy(imageProxy) { rawFrame ->
+                                                    val smoothedFrame = keypointFilter.filter(rawFrame, exerciseConfig)
+                                                    currentPoseFrame = smoothedFrame
 
-                                        poseDetectorManager.processImageProxy(imageProxy) { rawFrame ->
-                                            val smoothedFrame = keypointFilter.filter(rawFrame, exerciseConfig)
-                                            currentPoseFrame = smoothedFrame
-
-                                            val repResult = repetitionCounter.processFrame(
-                                                poseFrame = smoothedFrame,
-                                                config = exerciseConfig,
-                                                sessionStateManager = sessionStateManager
-                                            )
-                                            currentAngleResult = repResult.angleResult
-
-                                            if (repResult.angleResult != null) {
-                                                Log.d(
-                                                    "PhysioSyncSession",
-                                                    String.format(
-                                                        Locale.US,
-                                                        "Reps: %d (Good: %d, Flagged: %d) | Form: %s | State: %s",
-                                                        sessionState.repCount,
-                                                        sessionState.goodRepCount,
-                                                        sessionState.flaggedRepCount,
-                                                        sessionState.currentForm.name,
-                                                        repResult.transition.currentState.name
+                                                    val repResult = repetitionCounter.processFrame(
+                                                        poseFrame = smoothedFrame,
+                                                        config = exerciseConfig,
+                                                        sessionStateManager = sessionStateManager
                                                     )
-                                                )
-                                            }
-                                        }
-                                    }
-                                )
+                                                    currentAngleResult = repResult.angleResult
 
-                                SkeletonOverlay(
-                                    poseFrame = currentPoseFrame,
-                                    imageWidth = frameWidth,
-                                    imageHeight = frameHeight,
-                                    minConfidence = exerciseConfig.minKeypointConfidence,
-                                    isFrontCamera = cameraManager.isFrontCamera,
+                                                    if (repResult.angleResult != null) {
+                                                        Log.d(
+                                                            "PhysioSyncSession",
+                                                            String.format(
+                                                                Locale.US,
+                                                                "Reps: %d (Good: %d, Flagged: %d) | Form: %s | State: %s",
+                                                                sessionState.repCount,
+                                                                sessionState.goodRepCount,
+                                                                sessionState.flaggedRepCount,
+                                                                sessionState.currentForm.name,
+                                                                repResult.transition.currentState.name
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        )
+
+                                        SkeletonOverlay(
+                                            poseFrame = currentPoseFrame,
+                                            imageWidth = frameWidth,
+                                            imageHeight = frameHeight,
+                                            minConfidence = exerciseConfig.minKeypointConfidence,
+                                            isFrontCamera = cameraManager.isFrontCamera,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+
+                                        // Patient Screen Overlay UI
+                                        val formStatus = when (sessionState.currentForm) {
+                                            FormFlag.GOOD -> FormStatus.GOOD
+                                            FormFlag.REDUCED_ROM -> FormStatus.REDUCED_ROM
+                                            FormFlag.IRREGULAR_TEMPO -> FormStatus.IRREGULAR_TEMPO
+                                            FormFlag.LOW_CONFIDENCE -> FormStatus.LOW_CONFIDENCE
+                                        }
+
+                                        val patientUiState = PatientSessionUiState(
+                                            exerciseName = "Seated Knee Extension",
+                                            currentAngle = sessionState.currentKneeAngle,
+                                            targetAngle = exerciseConfig.targetRomAngle,
+                                            completedReps = sessionState.repCount,
+                                            targetReps = 10,
+                                            currentState = sessionState.currentState.name,
+                                            formStatus = formStatus,
+                                            feedbackMessage = sessionState.latestCoachingMessage.ifEmpty {
+                                                if (currentAngleResult != null) "Form: ${sessionState.currentForm.description}"
+                                                else "Position side profile in camera view"
+                                            },
+                                            isPaused = sessionState.isPaused,
+                                            isLowConfidence = sessionState.currentForm == FormFlag.LOW_CONFIDENCE
+                                        )
+
+                                        PatientScreen(
+                                            sessionState = patientUiState,
+                                            onPauseClicked = {
+                                                if (sessionState.isPaused) {
+                                                    sessionStateManager.resumeSession()
+                                                } else {
+                                                    sessionStateManager.pauseSession()
+                                                }
+                                            },
+                                            onEndSessionClicked = {
+                                                sessionStateManager.endSession()
+                                                currentScreen = "REPORT"
+                                            },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+                            }
+                            "REPORT" -> {
+                                val repDetails = sessionState.completedReps.map { detail ->
+                                    val status = when (detail.formFlag) {
+                                        FormFlag.GOOD -> FormStatus.GOOD
+                                        FormFlag.REDUCED_ROM -> FormStatus.REDUCED_ROM
+                                        FormFlag.IRREGULAR_TEMPO -> FormStatus.IRREGULAR_TEMPO
+                                        FormFlag.LOW_CONFIDENCE -> FormStatus.LOW_CONFIDENCE
+                                    }
+                                    RepDetail(
+                                        repNumber = detail.repIndex,
+                                        maxAngle = detail.peakAngle,
+                                        status = status,
+                                        note = detail.formFlag.description
+                                    )
+                                }
+
+                                val maxAngle = sessionState.completedReps.maxOfOrNull { it.peakAngle } ?: 0f
+                                val avgAngle = if (sessionState.completedReps.isNotEmpty()) sessionState.completedReps.map { it.peakAngle }.average().toFloat() else 0f
+
+                                SessionReportScreen(
+                                    reportData = SessionReportData(
+                                        exerciseName = "Seated Knee Extension",
+                                        totalRepsCount = sessionState.repCount,
+                                        goodRepsCount = sessionState.goodRepCount,
+                                        flaggedRepsCount = sessionState.flaggedRepCount,
+                                        maxKneeAngleAchieved = maxAngle,
+                                        averageAngle = avgAngle,
+                                        sessionDurationSeconds = (sessionState.sessionDurationMs / 1000).toInt(),
+                                        repDetails = if (repDetails.isNotEmpty()) repDetails else listOf(
+                                            RepDetail(1, 170f, FormStatus.GOOD, "Sample rep - excellent ROM")
+                                        )
+                                    ),
+                                    onDoneClicked = {
+                                        repetitionCounter.reset()
+                                        keypointFilter.reset()
+                                        sessionStateManager.startSession()
+                                        currentScreen = "PATIENT"
+                                    },
                                     modifier = Modifier.fillMaxSize()
                                 )
-
-                                // Live Repetition Counter & Form Status Card
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = 16.dp)
-                                        .background(
-                                            color = Color.Black.copy(alpha = 0.85f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .padding(horizontal = 24.dp, vertical = 14.dp)
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = if (sessionState.isCompleted) "SESSION COMPLETED" else "REPS: ${sessionState.repCount} (Good: ${sessionState.goodRepCount})",
-                                            color = if (sessionState.isCompleted) Color(0xFF00E5FF) else Color(0xFF76FF03),
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Black
-                                        )
-
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        val formColor = when (sessionState.currentForm) {
-                                            FormFlag.GOOD -> Color(0xFF76FF03)
-                                            FormFlag.REDUCED_ROM -> Color(0xFFFF9100)
-                                            FormFlag.IRREGULAR_TEMPO -> Color(0xFFFF3D00)
-                                            FormFlag.LOW_CONFIDENCE -> Color(0xFFE0E0E0)
-                                        }
-
-                                        val angleText = if (currentAngleResult != null) {
-                                            val legLabel = if (currentAngleResult!!.isLeftLeg) "Left" else "Right"
-                                            String.format(Locale.US, "Angle: %.1f° (%s)", currentAngleResult!!.angleDegrees, legLabel)
-                                        } else {
-                                            "Position in view..."
-                                        }
-
-                                        val stateColor = when (sessionState.currentState) {
-                                            ExerciseState.WAITING -> Color(0xFFB0BEC5)
-                                            ExerciseState.EXTENDING -> Color(0xFFFFD54F)
-                                            ExerciseState.PEAK -> Color(0xFF76FF03)
-                                            ExerciseState.RETURNING -> Color(0xFF00E5FF)
-                                        }
-
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = angleText,
-                                                color = Color(0xFF00E5FF),
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = sessionState.currentState.name,
-                                                color = stateColor,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = sessionState.currentForm.name,
-                                                color = formColor,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Interactive Session Controls Bar
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 24.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // Pause / Resume Button
-                                    Button(
-                                        onClick = {
-                                            if (sessionState.isPaused) {
-                                                sessionStateManager.resumeSession()
-                                            } else {
-                                                sessionStateManager.pauseSession()
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (sessionState.isPaused) Color(0xFF76FF03) else Color(0xFFFFD54F),
-                                            contentColor = Color.Black
-                                        )
-                                    ) {
-                                        Text(
-                                            text = if (sessionState.isPaused) "Resume" else "Pause",
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-
-                                    // End Session Button
-                                    Button(
-                                        onClick = {
-                                            if (sessionState.isSessionActive) {
-                                                sessionStateManager.endSession()
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFFFF3D00),
-                                            contentColor = Color.White
-                                        )
-                                    ) {
-                                        Text(text = "End", fontWeight = FontWeight.Bold)
-                                    }
-
-                                    // Restart Button
-                                    OutlinedButton(
-                                        onClick = {
-                                            repetitionCounter.reset()
-                                            keypointFilter.reset()
-                                            sessionStateManager.startSession()
-                                        }
-                                    ) {
-                                        Text(text = "Restart", color = Color.White, fontWeight = FontWeight.Bold)
-                                    }
-                                }
                             }
                         }
                     }
@@ -258,9 +233,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        voiceCoachManager.shutdown()
         cameraManager.shutdown()
         poseDetectorManager.close()
         keypointFilter.reset()
         repetitionCounter.reset()
     }
+}
 }
