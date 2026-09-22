@@ -77,10 +77,18 @@ class MainActivity : ComponentActivity() {
                             var currentAngleResult by remember { mutableStateOf<JointAngleResult?>(null) }
                             var frameWidth by remember { mutableStateOf(480f) }
                             var frameHeight by remember { mutableStateOf(640f) }
+                            var showClinicianDashboard by remember { mutableStateOf(false) }
 
                             val sessionState by sessionStateManager.state.collectAsState()
+                            val dashboardViewModel = remember {
+                                com.example.physiosync.ui.dashboard.ClinicianDashboardViewModel(
+                                    sessionStateManager = sessionStateManager,
+                                    exerciseConfig = exerciseConfig
+                                )
+                            }
 
                             Box(modifier = Modifier.fillMaxSize()) {
+                                // Background Camera Analysis Pipeline (Always Active)
                                 CameraPreview(
                                     cameraManager = cameraManager,
                                     onFrameAnalyzed = { imageProxy ->
@@ -117,135 +125,167 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
 
-                                SkeletonOverlay(
-                                    poseFrame = currentPoseFrame,
-                                    imageWidth = frameWidth,
-                                    imageHeight = frameHeight,
-                                    minConfidence = exerciseConfig.minKeypointConfidence,
-                                    isFrontCamera = cameraManager.isFrontCamera,
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                if (showClinicianDashboard) {
+                                    // Clinician Dashboard / Coach View (Task 13 / Office Kit Mirror Target)
+                                    com.example.physiosync.ui.dashboard.ClinicianDashboardScreen(
+                                        viewModel = dashboardViewModel,
+                                        onToggleView = { showClinicianDashboard = false },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    // Patient Camera & Pose Tracking View
+                                    SkeletonOverlay(
+                                        poseFrame = currentPoseFrame,
+                                        imageWidth = frameWidth,
+                                        imageHeight = frameHeight,
+                                        minConfidence = exerciseConfig.minKeypointConfidence,
+                                        isFrontCamera = cameraManager.isFrontCamera,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
 
-                                // Live Repetition Counter & Form Status Card
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = 16.dp)
-                                        .background(
-                                            color = Color.Black.copy(alpha = 0.85f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .padding(horizontal = 24.dp, vertical = 14.dp)
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = if (sessionState.isCompleted) "SESSION COMPLETED" else "REPS: ${sessionState.repCount} (Good: ${sessionState.goodRepCount})",
-                                            color = if (sessionState.isCompleted) Color(0xFF00E5FF) else Color(0xFF76FF03),
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Black
-                                        )
-
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        val formColor = when (sessionState.currentForm) {
-                                            FormFlag.GOOD -> Color(0xFF76FF03)
-                                            FormFlag.REDUCED_ROM -> Color(0xFFFF9100)
-                                            FormFlag.IRREGULAR_TEMPO -> Color(0xFFFF3D00)
-                                            FormFlag.LOW_CONFIDENCE -> Color(0xFFE0E0E0)
-                                        }
-
-                                        val angleText = if (currentAngleResult != null) {
-                                            val legLabel = if (currentAngleResult!!.isLeftLeg) "Left" else "Right"
-                                            String.format(Locale.US, "Angle: %.1f° (%s)", currentAngleResult!!.angleDegrees, legLabel)
-                                        } else {
-                                            "Position in view..."
-                                        }
-
-                                        val stateColor = when (sessionState.currentState) {
-                                            ExerciseState.WAITING -> Color(0xFFB0BEC5)
-                                            ExerciseState.EXTENDING -> Color(0xFFFFD54F)
-                                            ExerciseState.PEAK -> Color(0xFF76FF03)
-                                            ExerciseState.RETURNING -> Color(0xFF00E5FF)
-                                        }
-
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Top Bar: View Mode Switcher Button
+                                    Row(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(top = 16.dp, end = 16.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { showClinicianDashboard = true },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF1E293B),
+                                                contentColor = Color(0xFF00E5FF)
+                                            ),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
                                             Text(
-                                                text = angleText,
-                                                color = Color(0xFF00E5FF),
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = sessionState.currentState.name,
-                                                color = stateColor,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = sessionState.currentForm.name,
-                                                color = formColor,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold
+                                                text = "Clinician View",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
                                             )
                                         }
                                     }
-                                }
 
-                                // Interactive Session Controls Bar
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 24.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // Pause / Resume Button
-                                    Button(
-                                        onClick = {
-                                            if (sessionState.isPaused) {
-                                                sessionStateManager.resumeSession()
+                                    // Live Repetition Counter & Form Status Card
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .padding(top = 16.dp)
+                                            .background(
+                                                color = Color.Black.copy(alpha = 0.85f),
+                                                shape = RoundedCornerShape(16.dp)
+                                            )
+                                            .padding(horizontal = 24.dp, vertical = 14.dp)
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(
+                                                text = if (sessionState.isCompleted) "SESSION COMPLETED" else "REPS: ${sessionState.repCount} (Good: ${sessionState.goodRepCount})",
+                                                color = if (sessionState.isCompleted) Color(0xFF00E5FF) else Color(0xFF76FF03),
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Black
+                                            )
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            val formColor = when (sessionState.currentForm) {
+                                                FormFlag.GOOD -> Color(0xFF76FF03)
+                                                FormFlag.REDUCED_ROM -> Color(0xFFFF9100)
+                                                FormFlag.IRREGULAR_TEMPO -> Color(0xFFFF3D00)
+                                                FormFlag.LOW_CONFIDENCE -> Color(0xFFE0E0E0)
+                                            }
+
+                                            val angleText = if (currentAngleResult != null) {
+                                                val legLabel = if (currentAngleResult!!.isLeftLeg) "Left" else "Right"
+                                                String.format(Locale.US, "Angle: %.1f° (%s)", currentAngleResult!!.angleDegrees, legLabel)
                                             } else {
-                                                sessionStateManager.pauseSession()
+                                                "Position in view..."
                                             }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (sessionState.isPaused) Color(0xFF76FF03) else Color(0xFFFFD54F),
-                                            contentColor = Color.Black
-                                        )
-                                    ) {
-                                        Text(
-                                            text = if (sessionState.isPaused) "Resume" else "Pause",
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
 
-                                    // End Session Button
-                                    Button(
-                                        onClick = {
-                                            if (sessionState.isSessionActive) {
-                                                sessionStateManager.endSession()
+                                            val stateColor = when (sessionState.currentState) {
+                                                ExerciseState.WAITING -> Color(0xFFB0BEC5)
+                                                ExerciseState.EXTENDING -> Color(0xFFFFD54F)
+                                                ExerciseState.PEAK -> Color(0xFF76FF03)
+                                                ExerciseState.RETURNING -> Color(0xFF00E5FF)
                                             }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFFFF3D00),
-                                            contentColor = Color.White
-                                        )
-                                    ) {
-                                        Text(text = "End", fontWeight = FontWeight.Bold)
-                                    }
 
-                                    // Restart Button
-                                    OutlinedButton(
-                                        onClick = {
-                                            repetitionCounter.reset()
-                                            keypointFilter.reset()
-                                            sessionStateManager.startSession()
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = angleText,
+                                                    color = Color(0xFF00E5FF),
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Text(
+                                                    text = sessionState.currentState.name,
+                                                    color = stateColor,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Text(
+                                                    text = sessionState.currentForm.name,
+                                                    color = formColor,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
+                                    }
+
+                                    // Interactive Session Controls Bar
+                                    Row(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 24.dp),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(text = "Restart", color = Color.White, fontWeight = FontWeight.Bold)
+                                        // Pause / Resume Button
+                                        Button(
+                                            onClick = {
+                                                if (sessionState.isPaused) {
+                                                    sessionStateManager.resumeSession()
+                                                } else {
+                                                    sessionStateManager.pauseSession()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (sessionState.isPaused) Color(0xFF76FF03) else Color(0xFFFFD54F),
+                                                contentColor = Color.Black
+                                            )
+                                        ) {
+                                            Text(
+                                                text = if (sessionState.isPaused) "Resume" else "Pause",
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        // End Session Button
+                                        Button(
+                                            onClick = {
+                                                if (sessionState.isSessionActive) {
+                                                    sessionStateManager.endSession()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFFF3D00),
+                                                contentColor = Color.White
+                                            )
+                                        ) {
+                                            Text(text = "End", fontWeight = FontWeight.Bold)
+                                        }
+
+                                        // Restart Button
+                                        OutlinedButton(
+                                            onClick = {
+                                                repetitionCounter.reset()
+                                                keypointFilter.reset()
+                                                sessionStateManager.startSession()
+                                            }
+                                        ) {
+                                            Text(text = "Restart", color = Color.White, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
