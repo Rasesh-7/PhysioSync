@@ -4,6 +4,7 @@ import com.example.physiosync.core.model.FormFlag
 import com.example.physiosync.core.model.SessionEvent
 import com.example.physiosync.core.state.SessionStateManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -24,7 +25,7 @@ class VoiceCoachManagerTest {
     @Test
     fun sessionStateManager_emitsEvents_forVoiceCoachToObserve() = runTest(UnconfinedTestDispatcher()) {
         val emittedEvents = mutableListOf<SessionEvent>()
-        val job = kotlinx.coroutines.launch {
+        val job = launch {
             sessionStateManager.events.collect { emittedEvents.add(it) }
         }
 

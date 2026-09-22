@@ -6,20 +6,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
@@ -30,17 +23,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import com.example.physiosync.analysis.JointAngleResult
 import com.example.physiosync.analysis.RepetitionCounter
 import com.example.physiosync.camera.CameraManager
 import com.example.physiosync.core.config.ExerciseConfig
-import com.example.physiosync.core.model.ExerciseState
 import com.example.physiosync.core.model.FormFlag
 import com.example.physiosync.core.model.PoseFrame
 import com.example.physiosync.core.state.SessionStateManager
@@ -49,6 +39,8 @@ import com.example.physiosync.pose.PoseDetectorManager
 import com.example.physiosync.ui.camera.CameraPermissionHandler
 import com.example.physiosync.ui.camera.CameraPreview
 import com.example.physiosync.ui.camera.SkeletonOverlay
+import com.example.physiosync.ui.dashboard.ClinicianDashboardScreen
+import com.example.physiosync.ui.dashboard.ClinicianDashboardViewModel
 import com.example.physiosync.ui.patient.FormStatus
 import com.example.physiosync.ui.patient.PatientScreen
 import com.example.physiosync.ui.patient.PatientSessionUiState
@@ -82,13 +74,28 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PhysioSyncTheme {
-                var currentScreen by remember { mutableStateOf("PATIENT") }
+                var currentScreen by remember { mutableStateOf("PATIENT") } // PATIENT, CLINICIAN, REPORT
                 val sessionState by sessionStateManager.state.collectAsState()
+                val dashboardViewModel = remember {
+                    ClinicianDashboardViewModel(
+                        sessionStateManager = sessionStateManager,
+                        exerciseConfig = exerciseConfig
+                    )
+                }
+
+                // Keep screen active during session for continuous camera tracking & Office Kit mirroring
+                androidx.compose.runtime.LaunchedEffect(sessionState.isSessionActive, sessionState.isCompleted) {
+                    if (sessionState.isSessionActive && !sessionState.isCompleted) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
                         when (currentScreen) {
-                            "PATIENT" -> {
+                            "PATIENT", "CLINICIAN" -> {
                                 CameraPermissionHandler {
                                     var currentPoseFrame by remember { mutableStateOf<PoseFrame?>(null) }
                                     var currentAngleResult by remember { mutableStateOf<JointAngleResult?>(null) }
@@ -96,6 +103,7 @@ class MainActivity : ComponentActivity() {
                                     var frameHeight by remember { mutableStateOf(640f) }
 
                                     Box(modifier = Modifier.fillMaxSize()) {
+                                        // Continuous camera capture and pose estimation pipeline (single source of truth)
                                         CameraPreview(
                                             cameraManager = cameraManager,
                                             onFrameAnalyzed = { imageProxy ->
@@ -132,54 +140,96 @@ class MainActivity : ComponentActivity() {
                                             }
                                         )
 
-                                        SkeletonOverlay(
-                                            poseFrame = currentPoseFrame,
-                                            imageWidth = frameWidth,
-                                            imageHeight = frameHeight,
-                                            minConfidence = exerciseConfig.minKeypointConfidence,
-                                            isFrontCamera = cameraManager.isFrontCamera,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
+                                        if (currentScreen == "CLINICIAN") {
+                                            // Clinician Dashboard / Coach View (Task 13 / Office Kit Mirroring Target)
+                                            ClinicianDashboardScreen(
+                                                viewModel = dashboardViewModel,
+                                                onToggleView = { currentScreen = "PATIENT" },
+                                                cameraContent = {
+                                                    SkeletonOverlay(
+                                                        poseFrame = currentPoseFrame,
+                                                        imageWidth = frameWidth,
+                                                        imageHeight = frameHeight,
+                                                        minConfidence = exerciseConfig.minKeypointConfidence,
+                                                        isFrontCamera = cameraManager.isFrontCamera,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                },
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            // Patient Screen with Skeleton Overlay
+                                            val formStatus = when (sessionState.currentForm) {
+                                                FormFlag.GOOD -> FormStatus.GOOD
+                                                FormFlag.REDUCED_ROM -> FormStatus.REDUCED_ROM
+                                                FormFlag.IRREGULAR_TEMPO -> FormStatus.IRREGULAR_TEMPO
+                                                FormFlag.LOW_CONFIDENCE -> FormStatus.LOW_CONFIDENCE
+                                            }
 
-                                        // Patient Screen Overlay UI
-                                        val formStatus = when (sessionState.currentForm) {
-                                            FormFlag.GOOD -> FormStatus.GOOD
-                                            FormFlag.REDUCED_ROM -> FormStatus.REDUCED_ROM
-                                            FormFlag.IRREGULAR_TEMPO -> FormStatus.IRREGULAR_TEMPO
-                                            FormFlag.LOW_CONFIDENCE -> FormStatus.LOW_CONFIDENCE
-                                        }
+                                            val patientUiState = PatientSessionUiState(
+                                                exerciseName = "Seated Knee Extension",
+                                                currentAngle = sessionState.currentKneeAngle,
+                                                targetAngle = exerciseConfig.peakTargetAngle,
+                                                completedReps = sessionState.repCount,
+                                                targetReps = 10,
+                                                currentState = sessionState.currentState.name,
+                                                formStatus = formStatus,
+                                                feedbackMessage = (sessionState.latestCoachingMessage ?: "").ifEmpty {
+                                                    if (currentAngleResult != null) "Form: ${sessionState.currentForm.description}"
+                                                    else "Position side profile in camera view"
+                                                },
+                                                isPaused = sessionState.isPaused,
+                                                isLowConfidence = sessionState.currentForm == FormFlag.LOW_CONFIDENCE
+                                            )
 
-                                        val patientUiState = PatientSessionUiState(
-                                            exerciseName = "Seated Knee Extension",
-                                            currentAngle = sessionState.currentKneeAngle,
-                                            targetAngle = exerciseConfig.targetRomAngle,
-                                            completedReps = sessionState.repCount,
-                                            targetReps = 10,
-                                            currentState = sessionState.currentState.name,
-                                            formStatus = formStatus,
-                                            feedbackMessage = sessionState.latestCoachingMessage.ifEmpty {
-                                                if (currentAngleResult != null) "Form: ${sessionState.currentForm.description}"
-                                                else "Position side profile in camera view"
-                                            },
-                                            isPaused = sessionState.isPaused,
-                                            isLowConfidence = sessionState.currentForm == FormFlag.LOW_CONFIDENCE
-                                        )
+                                            PatientScreen(
+                                                sessionState = patientUiState,
+                                                onPauseClicked = {
+                                                    if (sessionState.isPaused) {
+                                                        sessionStateManager.resumeSession()
+                                                    } else {
+                                                        sessionStateManager.pauseSession()
+                                                    }
+                                                },
+                                                onEndSessionClicked = {
+                                                    sessionStateManager.endSession()
+                                                    currentScreen = "REPORT"
+                                                },
+                                                cameraContent = {
+                                                    SkeletonOverlay(
+                                                        poseFrame = currentPoseFrame,
+                                                        imageWidth = frameWidth,
+                                                        imageHeight = frameHeight,
+                                                        minConfidence = exerciseConfig.minKeypointConfidence,
+                                                        isFrontCamera = cameraManager.isFrontCamera,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                },
+                                                modifier = Modifier.fillMaxSize()
+                                            )
 
-                                        PatientScreen(
-                                            sessionState = patientUiState,
-                                            onPauseClicked = {
-                                                if (sessionState.isPaused) {
-                                                    sessionStateManager.resumeSession()
-                                                } else {
-                                                    sessionStateManager.pauseSession()
+                                            // Top Bar: Clinician Dashboard View Switcher Button
+                                            Row(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .padding(top = 16.dp, end = 16.dp)
+                                            ) {
+                                                Button(
+                                                    onClick = { currentScreen = "CLINICIAN" },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = Color(0xFF1E293B),
+                                                        contentColor = Color(0xFF00E5FF)
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Clinician View",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp
+                                                    )
                                                 }
-                                            },
-                                            onEndSessionClicked = {
-                                                sessionStateManager.endSession()
-                                                currentScreen = "REPORT"
-                                            },
-                                            modifier = Modifier.fillMaxSize()
-                                        )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -239,11 +289,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        voiceCoachManager.shutdown()
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (::voiceCoachManager.isInitialized) {
+            voiceCoachManager.shutdown()
+        }
         cameraManager.shutdown()
         poseDetectorManager.close()
         keypointFilter.reset()
         repetitionCounter.reset()
     }
-}
 }

@@ -64,11 +64,12 @@ fun PatientScreen(
     sessionState: PatientSessionUiState,
     onPauseClicked: () -> Unit,
     onEndSessionClicked: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cameraContent: @Composable (BoxScope.() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = Color.Transparent
     ) {
         Column(
             modifier = Modifier
@@ -90,7 +91,8 @@ fun PatientScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                sessionState = sessionState
+                sessionState = sessionState,
+                cameraContent = cameraContent
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -194,12 +196,13 @@ fun PatientHeaderSection(
 @Composable
 fun CameraViewportSection(
     sessionState: PatientSessionUiState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cameraContent: @Composable (BoxScope.() -> Unit)? = null
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(28.dp))
-            .background(NeutralDarkBackground)
+            .background(Color.Black.copy(alpha = 0.2f))
             .border(
                 width = 2.dp,
                 brush = Brush.verticalGradient(
@@ -212,6 +215,9 @@ fun CameraViewportSection(
             ),
         contentAlignment = Alignment.Center
     ) {
+        // Camera Preview + Skeleton Overlay Content
+        cameraContent?.invoke(this)
+
         // Overlay metric cards over camera feed
         Column(
             modifier = Modifier
