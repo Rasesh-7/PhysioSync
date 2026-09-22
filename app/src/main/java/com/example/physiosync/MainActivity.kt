@@ -169,12 +169,12 @@ class MainActivity : ComponentActivity() {
                                                 FormFlag.LOW_CONFIDENCE -> FormStatus.LOW_CONFIDENCE
                                             }
 
-                                            val patientUiState = PatientSessionUiState(
+                                             val patientUiState = PatientSessionUiState(
                                                 exerciseName = "Seated Knee Extension",
                                                 currentAngle = sessionState.currentKneeAngle,
                                                 targetAngle = exerciseConfig.peakTargetAngle,
                                                 completedReps = sessionState.repCount,
-                                                targetReps = 10,
+                                                targetReps = sessionState.targetReps,
                                                 currentState = sessionState.currentState.name,
                                                 formStatus = formStatus,
                                                 feedbackMessage = (sessionState.latestCoachingMessage ?: "").ifEmpty {
@@ -197,6 +197,9 @@ class MainActivity : ComponentActivity() {
                                                 onEndSessionClicked = {
                                                     sessionStateManager.endSession()
                                                     currentScreen = "REPORT"
+                                                },
+                                                onTargetRepsSelected = { target ->
+                                                    sessionStateManager.updateTargetReps(target)
                                                 },
                                                 cameraContent = {
                                                     SkeletonOverlay(

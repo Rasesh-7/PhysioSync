@@ -27,6 +27,7 @@ data class SessionState(
     val currentForm: FormFlag = FormFlag.GOOD,
     val latestCoachingMessage: String? = null,
     val completedReps: List<RepetitionDetail> = emptyList(),
+    val targetReps: Int = 10,
     val sessionStartTimeMs: Long = 0L,
     val sessionDurationMs: Long = 0L
 )

@@ -29,6 +29,8 @@ sealed interface SessionEvent {
     data object SessionPaused : SessionEvent
     data object SessionResumed : SessionEvent
 
+    data class TargetGoalReached(val targetReps: Int) : SessionEvent
+
     data class SessionEnded(
         val totalReps: Int,
         val goodReps: Int,

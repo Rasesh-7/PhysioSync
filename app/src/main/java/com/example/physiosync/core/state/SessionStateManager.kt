@@ -51,6 +51,12 @@ class SessionStateManager {
         _events.tryEmit(SessionEvent.SessionResumed)
     }
 
+    fun updateTargetReps(target: Int) {
+        if (target > 0) {
+            _state.update { it.copy(targetReps = target) }
+        }
+    }
+
     fun updateAngleAndState(angle: Float, exerciseState: ExerciseState, formFlag: FormFlag = FormFlag.GOOD) {
         if (!_state.value.isSessionActive || _state.value.isPaused) return
         _state.update {
@@ -105,6 +111,10 @@ class SessionStateManager {
                     reason = formFlag.description
                 )
             )
+        }
+
+        if (currentCount >= _state.value.targetReps) {
+            _events.tryEmit(SessionEvent.TargetGoalReached(targetReps = _state.value.targetReps))
         }
     }
 

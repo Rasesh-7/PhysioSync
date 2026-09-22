@@ -40,6 +40,9 @@ class SoundEffectsManager {
                             playWarningTone()
                         }
                     }
+                    is SessionEvent.TargetGoalReached -> {
+                        playTargetReachedFanfare()
+                    }
                     is SessionEvent.SessionEnded -> {
                         playSessionCompleteTone()
                     }
@@ -54,6 +57,15 @@ class SoundEffectsManager {
             toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
         } catch (e: Exception) {
             Log.w("SoundEffectsManager", "Error playing rep tone", e)
+        }
+    }
+
+    fun playTargetReachedFanfare() {
+        try {
+            // Distinct triumphant sound effect for goal completion
+            toneGenerator?.startTone(ToneGenerator.TONE_DTMF_D, 400)
+        } catch (e: Exception) {
+            Log.w("SoundEffectsManager", "Error playing target reached tone", e)
         }
     }
 

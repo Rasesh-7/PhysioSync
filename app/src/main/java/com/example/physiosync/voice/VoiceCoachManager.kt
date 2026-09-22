@@ -52,6 +52,7 @@ class VoiceCoachManager(context: Context) : TextToSpeech.OnInitListener {
             is SessionEvent.SessionStarted -> speak("Session started. Position side profile in camera view.", force = true)
             is SessionEvent.SessionPaused -> speak("Session paused.", force = true)
             is SessionEvent.SessionResumed -> speak("Session resumed.", force = true)
+            is SessionEvent.TargetGoalReached -> speak("Goal achieved! Target repetitions completed.", force = true)
             is SessionEvent.SessionEnded -> speak("Session completed. Great work!", force = true)
             is SessionEvent.RepCompleted -> {
                 val message = when (event.formFlag) {

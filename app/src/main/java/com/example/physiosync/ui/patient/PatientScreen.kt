@@ -64,12 +64,13 @@ fun PatientScreen(
     sessionState: PatientSessionUiState,
     onPauseClicked: () -> Unit,
     onEndSessionClicked: () -> Unit,
+    onTargetRepsSelected: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
     cameraContent: @Composable (BoxScope.() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = Color.Transparent
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
@@ -80,8 +81,10 @@ fun PatientScreen(
             // 1. Top Bar / Header
             PatientHeaderSection(
                 exerciseName = sessionState.exerciseName,
+                currentTargetReps = sessionState.targetReps,
                 isPaused = sessionState.isPaused,
-                isLowConfidence = sessionState.isLowConfidence
+                isLowConfidence = sessionState.isLowConfidence,
+                onTargetRepsSelected = onTargetRepsSelected
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -119,8 +122,10 @@ fun PatientScreen(
 @Composable
 fun PatientHeaderSection(
     exerciseName: String,
+    currentTargetReps: Int,
     isPaused: Boolean,
-    isLowConfidence: Boolean
+    isLowConfidence: Boolean,
+    onTargetRepsSelected: ((Int) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -129,64 +134,103 @@ fun PatientHeaderSection(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
         )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Column {
-                Text(
-                    text = "PHYSIOSYNC REHAB",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = exerciseName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            // Live status badge
-            val badgeColor = when {
-                isPaused -> StatusWarning
-                isLowConfidence -> StatusWarning
-                else -> StatusSuccess
-            }
-            val statusText = when {
-                isPaused -> "Paused"
-                isLowConfidence -> "Low Tracking"
-                else -> "Active"
-            }
-
-            Surface(
-                shape = CircleShape,
-                color = badgeColor.copy(alpha = 0.15f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.5f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(badgeColor)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
+                Column {
                     Text(
-                        text = statusText,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = badgeColor
+                        text = "PHYSIOSYNC REHAB",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp
+                        ),
+                        color = MaterialTheme.colorScheme.primary
                     )
+                    Text(
+                        text = exerciseName,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // Live status badge
+                val badgeColor = when {
+                    isPaused -> StatusWarning
+                    isLowConfidence -> StatusWarning
+                    else -> StatusSuccess
+                }
+                val statusText = when {
+                    isPaused -> "Paused"
+                    isLowConfidence -> "Low Tracking"
+                    else -> "Active"
+                }
+
+                Surface(
+                    shape = CircleShape,
+                    color = badgeColor.copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(badgeColor)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = badgeColor
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Target Rep Goal Selector Chips
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Goal:",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                listOf(5, 10, 15, 20).forEach { goal ->
+                    val isSelected = goal == currentTargetReps
+                    Surface(
+                        onClick = { onTargetRepsSelected?.invoke(goal) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Text(
+                            text = "${goal} reps",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal
+                            ),
+                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }
