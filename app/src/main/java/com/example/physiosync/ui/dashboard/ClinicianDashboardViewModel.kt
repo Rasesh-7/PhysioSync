@@ -48,7 +48,8 @@ data class ClinicianDashboardUiState(
     val averageRepDurationSeconds: Float = 0.0f,
     val targetMinAngle: Float = 150.0f,
     val targetMaxAngle: Float = 180.0f,
-    val isMirroredView: Boolean = false
+    val isMirroredView: Boolean = false,
+    val isPresentationMode: Boolean = false
 )
 
 /**
@@ -199,6 +200,10 @@ class ClinicianDashboardViewModel(
 
     fun restartSession() {
         sessionStateManager.startSession()
+    }
+
+    fun togglePresentationMode() {
+        _uiState.update { it.copy(isPresentationMode = !it.isPresentationMode) }
     }
 
     companion object {

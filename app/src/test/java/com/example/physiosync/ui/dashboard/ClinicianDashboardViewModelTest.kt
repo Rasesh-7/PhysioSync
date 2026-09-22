@@ -141,4 +141,13 @@ class ClinicianDashboardViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(viewModel.uiState.value.sessionState.isCompleted)
     }
+
+    @Test
+    fun `togglePresentationMode updates presentation state`() = runTest {
+        assertEquals(false, viewModel.uiState.value.isPresentationMode)
+        viewModel.togglePresentationMode()
+        assertEquals(true, viewModel.uiState.value.isPresentationMode)
+        viewModel.togglePresentationMode()
+        assertEquals(false, viewModel.uiState.value.isPresentationMode)
+    }
 }
