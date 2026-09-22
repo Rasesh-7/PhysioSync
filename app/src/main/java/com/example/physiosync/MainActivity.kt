@@ -136,19 +136,20 @@ class MainActivity : ComponentActivity() {
                                             ClinicianDashboardScreen(
                                                 viewModel = dashboardViewModel,
                                                 onToggleView = { currentScreen = "PATIENT" },
+                                                cameraContent = {
+                                                    SkeletonOverlay(
+                                                        poseFrame = currentPoseFrame,
+                                                        imageWidth = frameWidth,
+                                                        imageHeight = frameHeight,
+                                                        minConfidence = exerciseConfig.minKeypointConfidence,
+                                                        isFrontCamera = cameraManager.isFrontCamera,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                },
                                                 modifier = Modifier.fillMaxSize()
                                             )
                                         } else {
                                             // Patient Screen with Skeleton Overlay
-                                            SkeletonOverlay(
-                                                poseFrame = currentPoseFrame,
-                                                imageWidth = frameWidth,
-                                                imageHeight = frameHeight,
-                                                minConfidence = exerciseConfig.minKeypointConfidence,
-                                                isFrontCamera = cameraManager.isFrontCamera,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-
                                             val formStatus = when (sessionState.currentForm) {
                                                 FormFlag.GOOD -> FormStatus.GOOD
                                                 FormFlag.REDUCED_ROM -> FormStatus.REDUCED_ROM
@@ -184,6 +185,16 @@ class MainActivity : ComponentActivity() {
                                                 onEndSessionClicked = {
                                                     sessionStateManager.endSession()
                                                     currentScreen = "REPORT"
+                                                },
+                                                cameraContent = {
+                                                    SkeletonOverlay(
+                                                        poseFrame = currentPoseFrame,
+                                                        imageWidth = frameWidth,
+                                                        imageHeight = frameHeight,
+                                                        minConfidence = exerciseConfig.minKeypointConfidence,
+                                                        isFrontCamera = cameraManager.isFrontCamera,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
                                                 },
                                                 modifier = Modifier.fillMaxSize()
                                             )
@@ -263,7 +274,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        voiceCoachManager.shutdown()
+        if (::voiceCoachManager.isInitialized) {
+            voiceCoachManager.shutdown()
+        }
         cameraManager.shutdown()
         poseDetectorManager.close()
         keypointFilter.reset()
