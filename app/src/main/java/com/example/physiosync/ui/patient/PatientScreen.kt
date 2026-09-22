@@ -65,6 +65,7 @@ fun PatientScreen(
     onPauseClicked: () -> Unit,
     onEndSessionClicked: () -> Unit,
     onTargetRepsSelected: ((Int) -> Unit)? = null,
+    onSwitchCameraClicked: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     cameraContent: @Composable (BoxScope.() -> Unit)? = null
 ) {
@@ -84,7 +85,8 @@ fun PatientScreen(
                 currentTargetReps = sessionState.targetReps,
                 isPaused = sessionState.isPaused,
                 isLowConfidence = sessionState.isLowConfidence,
-                onTargetRepsSelected = onTargetRepsSelected
+                onTargetRepsSelected = onTargetRepsSelected,
+                onSwitchCameraClicked = onSwitchCameraClicked
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -125,7 +127,8 @@ fun PatientHeaderSection(
     currentTargetReps: Int,
     isPaused: Boolean,
     isLowConfidence: Boolean,
-    onTargetRepsSelected: ((Int) -> Unit)? = null
+    onTargetRepsSelected: ((Int) -> Unit)? = null,
+    onSwitchCameraClicked: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -162,39 +165,59 @@ fun PatientHeaderSection(
                     )
                 }
 
-                // Live status badge
-                val badgeColor = when {
-                    isPaused -> StatusWarning
-                    isLowConfidence -> StatusWarning
-                    else -> StatusSuccess
-                }
-                val statusText = when {
-                    isPaused -> "Paused"
-                    isLowConfidence -> "Low Tracking"
-                    else -> "Active"
-                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Camera Switcher Button (Front / Back toggle)
+                    if (onSwitchCameraClicked != null) {
+                        Surface(
+                            onClick = onSwitchCameraClicked,
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "📷",
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
 
-                Surface(
-                    shape = CircleShape,
-                    color = badgeColor.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.5f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Live status badge
+                    val badgeColor = when {
+                        isPaused -> StatusWarning
+                        isLowConfidence -> StatusWarning
+                        else -> StatusSuccess
+                    }
+                    val statusText = when {
+                        isPaused -> "Paused"
+                        isLowConfidence -> "Low Tracking"
+                        else -> "Active"
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = badgeColor.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.5f))
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(badgeColor)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = statusText,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = badgeColor
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(badgeColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = badgeColor
+                            )
+                        }
                     }
                 }
             }

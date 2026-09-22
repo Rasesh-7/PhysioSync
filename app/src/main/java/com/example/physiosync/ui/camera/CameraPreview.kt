@@ -30,7 +30,7 @@ fun CameraPreview(
         }
     }
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, cameraManager.isFrontCamera) {
         cameraManager.bindCamera(
             context = context,
             lifecycleOwner = lifecycleOwner,

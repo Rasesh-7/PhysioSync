@@ -1,6 +1,7 @@
 package com.example.physiosync.camera
 
 import android.content.Context
+import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -18,7 +19,7 @@ import java.util.concurrent.Executors
 /**
  * Clean wrapper for CameraX lifecycle binding, preview rendering, and image analysis stream.
  * Uses `STRATEGY_KEEP_ONLY_LATEST` to guarantee low latency real-time frame processing.
- * Defaults to Front Camera for patient selfie-guided rehabilitation monitoring.
+ * Safely defaults to Front Camera with automatic fallback to Back Camera if unavailable.
  */
 class CameraManager(
     private val analysisExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -49,6 +50,20 @@ class CameraManager(
 
                 provider.unbindAll()
 
+                // Check camera availability and fallback to back camera if front camera is absent
+                val targetSelector = when {
+                    provider.hasCamera(cameraSelector) -> cameraSelector
+                    provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) -> {
+                        CameraSelector.DEFAULT_BACK_CAMERA
+                    }
+                    provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) -> {
+                        CameraSelector.DEFAULT_FRONT_CAMERA
+                    }
+                    else -> cameraSelector
+                }
+
+                cameraSelector = targetSelector
+
                 val preview = Preview.Builder()
                     .build()
                     .also {
@@ -73,7 +88,19 @@ class CameraManager(
                 )
 
                 _cameraState.value = CameraState.Ready
+                Log.d("CameraManager", "Camera bound successfully: isFront=$isFrontCamera")
             } catch (e: Exception) {
+                Log.e("CameraManager", "Failed to bind camera with selector: $cameraSelector", e)
+                // If front camera failed, retry binding with back camera
+                if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA) {
+                    try {
+                        cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                        bindCamera(context, lifecycleOwner, previewView, onFrameAnalyzed)
+                        return@addListener
+                    } catch (fallbackEx: Exception) {
+                        Log.e("CameraManager", "Fallback to back camera failed", fallbackEx)
+                    }
+                }
                 _cameraState.value = CameraState.Error(e)
             }
         }, ContextCompat.getMainExecutor(context))

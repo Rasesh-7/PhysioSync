@@ -185,6 +185,8 @@ class MainActivity : ComponentActivity() {
                                                 isLowConfidence = sessionState.currentForm == FormFlag.LOW_CONFIDENCE
                                             )
 
+                                            var isFrontCamState by remember { mutableStateOf(cameraManager.isFrontCamera) }
+
                                             PatientScreen(
                                                 sessionState = patientUiState,
                                                 onPauseClicked = {
@@ -201,13 +203,17 @@ class MainActivity : ComponentActivity() {
                                                 onTargetRepsSelected = { target ->
                                                     sessionStateManager.updateTargetReps(target)
                                                 },
+                                                onSwitchCameraClicked = {
+                                                    cameraManager.switchCamera(this@MainActivity, this@MainActivity, previewView = androidx.camera.view.PreviewView(this@MainActivity)) {}
+                                                    isFrontCamState = cameraManager.isFrontCamera
+                                                },
                                                 cameraContent = {
                                                     SkeletonOverlay(
                                                         poseFrame = currentPoseFrame,
                                                         imageWidth = frameWidth,
                                                         imageHeight = frameHeight,
                                                         minConfidence = exerciseConfig.minKeypointConfidence,
-                                                        isFrontCamera = cameraManager.isFrontCamera,
+                                                        isFrontCamera = isFrontCamState,
                                                         modifier = Modifier.fillMaxSize()
                                                     )
                                                 },
