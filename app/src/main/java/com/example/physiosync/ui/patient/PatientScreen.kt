@@ -69,7 +69,7 @@ fun PatientScreen(
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = Color.Transparent
     ) {
         Column(
             modifier = Modifier
@@ -202,7 +202,7 @@ fun CameraViewportSection(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(28.dp))
-            .background(NeutralDarkBackground)
+            .background(Color.Black.copy(alpha = 0.2f))
             .border(
                 width = 2.dp,
                 brush = Brush.verticalGradient(
