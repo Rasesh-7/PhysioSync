@@ -47,6 +47,7 @@ import com.example.physiosync.ui.patient.PatientSessionUiState
 import com.example.physiosync.ui.patient.RepDetail
 import com.example.physiosync.ui.patient.SessionReportData
 import com.example.physiosync.ui.patient.SessionReportScreen
+import com.example.physiosync.audio.SoundEffectsManager
 import com.example.physiosync.ui.theme.PhysioSyncTheme
 import com.example.physiosync.voice.VoiceCoachManager
 import java.util.Locale
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var cameraManager: CameraManager
     private lateinit var poseDetectorManager: PoseDetectorManager
     private lateinit var voiceCoachManager: VoiceCoachManager
+    private val soundEffectsManager = SoundEffectsManager()
     private val exerciseConfig = ExerciseConfig()
     private val keypointFilter = KeypointFilter(exerciseConfig)
     private val sessionStateManager = SessionStateManager()
@@ -69,6 +71,7 @@ class MainActivity : ComponentActivity() {
         poseDetectorManager = PoseDetectorManager()
         voiceCoachManager = VoiceCoachManager(this)
         voiceCoachManager.observeSessionEvents(sessionStateManager, lifecycleScope)
+        soundEffectsManager.observeSessionEvents(sessionStateManager, lifecycleScope)
 
         sessionStateManager.startSession()
 
@@ -290,6 +293,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        soundEffectsManager.release()
         if (::voiceCoachManager.isInitialized) {
             voiceCoachManager.shutdown()
         }
