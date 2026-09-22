@@ -83,6 +83,15 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+                // Keep screen active during session for continuous camera tracking & Office Kit mirroring
+                androidx.compose.runtime.LaunchedEffect(sessionState.isSessionActive, sessionState.isCompleted) {
+                    if (sessionState.isSessionActive && !sessionState.isCompleted) {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
                         when (currentScreen) {
@@ -263,6 +272,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         voiceCoachManager.shutdown()
         cameraManager.shutdown()
         poseDetectorManager.close()

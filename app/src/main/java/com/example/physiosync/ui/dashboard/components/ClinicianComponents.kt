@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.physiosync.core.model.ExerciseState
@@ -52,11 +53,13 @@ val ClinicianGoodGreen = Color(0xFF10B981)
 val ClinicianWarningAmber = Color(0xFFF59E0B)
 val ClinicianAlertRed = Color(0xFFEF4444)
 val ClinicianMutedText = Color(0xFF94A3B8)
+val ClinicianPurple = Color(0xFF8B5CF6)
 
 @Composable
 fun ClinicianHeader(
     exerciseName: String,
     sessionState: SessionState,
+    isMirrored: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val statusText = when {
@@ -87,23 +90,41 @@ fun ClinicianHeader(
             .fillMaxWidth()
             .background(ClinicianCardBg, RoundedCornerShape(16.dp))
             .border(1.dp, ClinicianCardBorder, RoundedCornerShape(16.dp))
-            .padding(16.dp),
+            .padding(14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(
-                text = "CLINICIAN TELEMETRY",
-                color = ClinicianAccentCyan,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "CLINICIAN TELEMETRY",
+                    color = ClinicianAccentCyan,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+                if (isMirrored) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(ClinicianPurple.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                            .border(0.5.dp, ClinicianPurple, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "OFFICE KIT MIRROR",
+                            color = ClinicianPurple,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = exerciseName,
                 color = Color.White,
-                fontSize = 20.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -118,7 +139,7 @@ fun ClinicianHeader(
                 Text(
                     text = durationFormatted,
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
@@ -144,7 +165,7 @@ fun ClinicianHeader(
                     Text(
                         text = statusText,
                         color = statusColor,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -168,27 +189,27 @@ fun TelemetryMetricCard(
         border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
     ) {
         Column(
-            modifier = Modifier.padding(14.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
             Text(
                 text = title.uppercase(Locale.ROOT),
                 color = ClinicianMutedText,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.5.sp
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = primaryValue,
                 color = accentColor,
-                fontSize = 26.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Black
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = secondaryText,
                 color = Color.White.copy(alpha = 0.85f),
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -235,7 +256,7 @@ fun KneeAngleTelemetryCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(
                 verticalAlignment = Alignment.Bottom,
@@ -264,7 +285,7 @@ fun KneeAngleTelemetryCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Normalized angle progress indicator (90° to 180°)
             val normalizedProgress = ((currentAngle - 90f) / 90f).coerceIn(0f, 1f)
@@ -299,7 +320,7 @@ fun ExerciseStatePipeline(
         shape = RoundedCornerShape(14.dp),
         border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = "BIOMECHANICAL STATE MACHINE",
                 color = ClinicianMutedText,
@@ -307,7 +328,7 @@ fun ExerciseStatePipeline(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -340,7 +361,7 @@ fun ExerciseStatePipeline(
                         Text(
                             text = state.name,
                             color = if (isActive) stateColor else ClinicianMutedText,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = if (isActive) FontWeight.Black else FontWeight.Medium
                         )
                     }
@@ -349,7 +370,7 @@ fun ExerciseStatePipeline(
                         Text(
                             text = "→",
                             color = ClinicianMutedText,
-                            fontSize = 12.sp
+                            fontSize = 11.sp
                         )
                     }
                 }
@@ -379,7 +400,7 @@ fun FormStatusBadge(
         Text(
             text = label,
             color = color,
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
     }
@@ -388,6 +409,7 @@ fun FormStatusBadge(
 @Composable
 fun RepetitionBreakdownList(
     completedReps: List<RepetitionDetail>,
+    listHeight: Dp = 140.dp,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -396,7 +418,7 @@ fun RepetitionBreakdownList(
         shape = RoundedCornerShape(14.dp),
         border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = "REPETITION BREAKDOWN (${completedReps.size})",
                 color = ClinicianMutedText,
@@ -404,19 +426,19 @@ fun RepetitionBreakdownList(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             if (completedReps.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 20.dp),
+                        .height(listHeight),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "No completed repetitions recorded yet",
                         color = ClinicianMutedText,
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     )
                 }
             } else {
@@ -425,19 +447,19 @@ fun RepetitionBreakdownList(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFF0F172A), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("REP #", color = ClinicianMutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("PEAK", color = ClinicianMutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.2f))
-                    Text("TIME", color = ClinicianMutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("STATUS", color = ClinicianMutedText, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.8f))
+                    Text("REP #", color = ClinicianMutedText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text("PEAK", color = ClinicianMutedText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.2f))
+                    Text("TIME", color = ClinicianMutedText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text("STATUS", color = ClinicianMutedText, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.8f))
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 LazyColumn(
-                    modifier = Modifier.height(140.dp)
+                    modifier = Modifier.height(listHeight)
                 ) {
                     items(completedReps.reversed()) { rep ->
                         val isGood = rep.formFlag == FormFlag.GOOD
@@ -446,14 +468,14 @@ fun RepetitionBreakdownList(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("#${rep.repIndex}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                            Text(String.format(Locale.US, "%.1f°", rep.peakAngle), color = ClinicianAccentCyan, fontSize = 12.sp, modifier = Modifier.weight(1.2f))
-                            Text(String.format(Locale.US, "%.1fs", rep.durationSeconds), color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                            Text(rep.formFlag.name, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.8f))
+                            Text("#${rep.repIndex}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Text(String.format(Locale.US, "%.1f°", rep.peakAngle), color = ClinicianAccentCyan, fontSize = 11.sp, modifier = Modifier.weight(1.2f))
+                            Text(String.format(Locale.US, "%.1fs", rep.durationSeconds), color = Color.White, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                            Text(rep.formFlag.name, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.8f))
                         }
                     }
                 }
@@ -465,6 +487,7 @@ fun RepetitionBreakdownList(
 @Composable
 fun RealTimeEventLog(
     eventLogs: List<ClinicianLogEntry>,
+    listHeight: Dp = 140.dp,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -473,7 +496,7 @@ fun RealTimeEventLog(
         shape = RoundedCornerShape(14.dp),
         border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = "REAL-TIME CLINICAL EVENT FEED",
                 color = ClinicianMutedText,
@@ -481,24 +504,24 @@ fun RealTimeEventLog(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             if (eventLogs.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 20.dp),
+                        .height(listHeight),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Awaiting session events...",
                         color = ClinicianMutedText,
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     )
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.height(140.dp)
+                    modifier = Modifier.height(listHeight)
                 ) {
                     items(eventLogs) { entry ->
                         val badgeColor = when (entry.severity) {
@@ -511,17 +534,17 @@ fun RealTimeEventLog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                                .padding(vertical = 3.dp),
                             verticalAlignment = Alignment.Top
                         ) {
                             Text(
                                 text = entry.timeFormatted,
                                 color = ClinicianMutedText,
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace,
                                 modifier = Modifier.padding(top = 1.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Box(
                                 modifier = Modifier
                                     .size(6.dp)
@@ -529,18 +552,18 @@ fun RealTimeEventLog(
                                     .background(badgeColor)
                                     .align(Alignment.CenterVertically)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = entry.title,
                                     color = Color.White,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = entry.detail,
                                     color = ClinicianMutedText,
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -555,10 +578,12 @@ fun RealTimeEventLog(
 fun ClinicianControlBar(
     isPaused: Boolean,
     isSessionActive: Boolean,
+    isPresentationMode: Boolean = false,
     onPauseToggle: () -> Unit,
     onEndSession: () -> Unit,
     onRestart: () -> Unit,
     onToggleView: () -> Unit,
+    onTogglePresentation: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -566,7 +591,7 @@ fun ClinicianControlBar(
             .fillMaxWidth()
             .background(ClinicianCardBg, RoundedCornerShape(16.dp))
             .border(1.dp, ClinicianCardBorder, RoundedCornerShape(16.dp))
-            .padding(12.dp),
+            .padding(10.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -575,7 +600,20 @@ fun ClinicianControlBar(
             onClick = onToggleView,
             shape = RoundedCornerShape(10.dp)
         ) {
-            Text("Camera View", color = ClinicianAccentCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Camera View", color = ClinicianAccentCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+
+        // Presentation / Full Screen Mode Toggle
+        OutlinedButton(
+            onClick = onTogglePresentation,
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text(
+                text = if (isPresentationMode) "Compact" else "Present",
+                color = ClinicianPurple,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
 
         // Pause / Resume
@@ -589,7 +627,7 @@ fun ClinicianControlBar(
         ) {
             Text(
                 text = if (isPaused) "Resume" else "Pause",
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -604,7 +642,7 @@ fun ClinicianControlBar(
                 contentColor = Color.White
             )
         ) {
-            Text("End Session", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("End Session", fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
 
         // Restart
@@ -612,7 +650,7 @@ fun ClinicianControlBar(
             onClick = onRestart,
             shape = RoundedCornerShape(10.dp)
         ) {
-            Text("Restart", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("Restart", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
