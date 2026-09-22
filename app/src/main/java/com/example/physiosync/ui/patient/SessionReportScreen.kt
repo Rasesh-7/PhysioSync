@@ -8,16 +8,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -27,7 +25,7 @@ import com.example.physiosync.ui.theme.*
 
 data class RepDetail(
     val repNumber: Int,
-    val maxAngle: Float,
+    val maxAngle: Float = 0f,
     val status: FormStatus,
     val note: String
 )
@@ -41,16 +39,16 @@ data class SessionReportData(
     val averageAngle: Float = 160f,
     val sessionDurationSeconds: Int = 120,
     val repDetails: List<RepDetail> = listOf(
-        RepDetail(1, 170f, FormStatus.GOOD, "Excellent range of motion"),
-        RepDetail(2, 168f, FormStatus.GOOD, "Good control"),
-        RepDetail(3, 150f, FormStatus.REDUCED_ROM, "Reduced extension (under 160°)"),
-        RepDetail(4, 169f, FormStatus.GOOD, "Smooth execution"),
-        RepDetail(5, 167f, FormStatus.GOOD, "Solid hold at peak"),
-        RepDetail(6, 145f, FormStatus.REDUCED_ROM, "Partial extension"),
-        RepDetail(7, 172f, FormStatus.GOOD, "Great effort"),
-        RepDetail(8, 170f, FormStatus.GOOD, "Consistent tempo"),
-        RepDetail(9, 168f, FormStatus.GOOD, "Good form"),
-        RepDetail(10, 169f, FormStatus.GOOD, "Final rep completed well")
+        RepDetail(1, 170f, FormStatus.GOOD, "Full extension & steady lift — Great posture!"),
+        RepDetail(2, 168f, FormStatus.GOOD, "Good leg control and balance"),
+        RepDetail(3, 150f, FormStatus.REDUCED_ROM, "Partial lift — Try lifting your leg higher next time"),
+        RepDetail(4, 169f, FormStatus.GOOD, "Smooth and steady execution"),
+        RepDetail(5, 167f, FormStatus.GOOD, "Solid knee extension"),
+        RepDetail(6, 145f, FormStatus.REDUCED_ROM, "Leg was slightly bent — Aim for a straight leg at top"),
+        RepDetail(7, 172f, FormStatus.GOOD, "Excellent posture and hold"),
+        RepDetail(8, 170f, FormStatus.GOOD, "Controlled tempo throughout"),
+        RepDetail(9, 168f, FormStatus.GOOD, "Good form maintained"),
+        RepDetail(10, 169f, FormStatus.GOOD, "Strong final repetition!")
     )
 )
 
@@ -60,6 +58,10 @@ fun SessionReportScreen(
     onDoneClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val postureScore = if (reportData.totalRepsCount > 0) {
+        ((reportData.goodRepsCount.toFloat() / reportData.totalRepsCount.toFloat()) * 100).toInt()
+    } else 100
+
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -70,7 +72,7 @@ fun SessionReportScreen(
                 .padding(20.dp)
         ) {
             Text(
-                text = "SESSION REPORT",
+                text = "POSTURE & PROGRESS REPORT",
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.2.sp
@@ -79,8 +81,8 @@ fun SessionReportScreen(
             )
 
             Text(
-                text = "Great job completing your set!",
-                style = MaterialTheme.typography.headlineMedium.copy(
+                text = if (postureScore >= 80) "Great Posture & Control!" else "Session Completed — Room for Growth",
+                style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Bold
                 ),
                 color = MaterialTheme.colorScheme.onBackground
@@ -88,38 +90,45 @@ fun SessionReportScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Key Summary Metric Grid
+            // Key Summary Metric Grid (User-Centric)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ReportMetricCard(
-                    title = "Good Reps",
-                    value = "${reportData.goodRepsCount}/${reportData.totalRepsCount}",
-                    icon = Icons.Default.CheckCircle,
-                    accentColor = StatusSuccess,
+                    title = "Posture Score",
+                    value = "$postureScore%",
+                    subText = if (postureScore >= 80) "Excellent Form" else "Needs Attention",
+                    icon = Icons.Default.Star,
+                    accentColor = if (postureScore >= 80) StatusSuccess else StatusWarning,
                     modifier = Modifier.weight(1f)
                 )
                 ReportMetricCard(
-                    title = "Peak Angle",
-                    value = "${reportData.maxKneeAngleAchieved.toInt()}°",
-                    icon = Icons.Default.Speed,
+                    title = "Target Completed",
+                    value = "${reportData.goodRepsCount} / ${reportData.totalRepsCount}",
+                    subText = "Proper Reps",
+                    icon = Icons.Default.CheckCircle,
                     accentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // How to Improve Your Posture Card
+            ImprovementTipsCard(reportData = reportData)
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Repetition Breakdown",
+                text = "Repetition Feedback",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // List of detailed reps
+            // List of detailed reps with posture feedback
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -127,7 +136,7 @@ fun SessionReportScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(reportData.repDetails) { rep ->
-                    RepDetailRow(rep = rep)
+                    UserFriendlyRepRow(rep = rep)
                 }
             }
 
@@ -144,9 +153,81 @@ fun SessionReportScreen(
                 )
             ) {
                 Text(
-                    text = "Complete & Return",
+                    text = "Done",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun ImprovementTipsCard(reportData: SessionReportData) {
+    val hasRomIssues = reportData.repDetails.any { it.status == FormStatus.REDUCED_ROM }
+    val hasTempoIssues = reportData.repDetails.any { it.status == FormStatus.IRREGULAR_TEMPO }
+    val hasConfidenceIssues = reportData.repDetails.any { it.status == FormStatus.LOW_CONFIDENCE }
+
+    val tips = mutableListOf<String>()
+    if (hasRomIssues) {
+        tips.add("Aim to extend your leg fully straight at the top of each kick.")
+    }
+    if (hasTempoIssues) {
+        tips.add("Maintain a smooth, controlled 2-second lift and lower phase.")
+    }
+    if (hasConfidenceIssues) {
+        tips.add("Position your full side profile clearly in good lighting.")
+    }
+    if (tips.isEmpty()) {
+        tips.add("Outstanding posture! Keep maintaining this steady form in your next session.")
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Lightbulb,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "HOW TO IMPROVE YOUR POSTURE",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    ),
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            tips.forEach { tip ->
+                Row(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "• ",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        text = tip,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
             }
         }
     }
@@ -156,6 +237,7 @@ fun SessionReportScreen(
 fun ReportMetricCard(
     title: String,
     value: String,
+    subText: String,
     icon: ImageVector,
     accentColor: Color,
     modifier: Modifier = Modifier
@@ -189,17 +271,38 @@ fun ReportMetricCard(
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
+            Text(
+                text = subText,
+                style = MaterialTheme.typography.labelSmall,
+                color = accentColor
+            )
         }
     }
 }
 
 @Composable
-fun RepDetailRow(rep: RepDetail) {
-    val (statusColor, statusText) = when (rep.status) {
-        FormStatus.GOOD -> Pair(StatusSuccess, "Good")
-        FormStatus.REDUCED_ROM -> Pair(StatusWarning, "Reduced ROM")
-        FormStatus.IRREGULAR_TEMPO -> Pair(CoralAccent, "Tempo")
-        FormStatus.LOW_CONFIDENCE -> Pair(StatusError, "Low Confidence")
+fun UserFriendlyRepRow(rep: RepDetail) {
+    val (statusColor, statusTitle, userAdvice) = when (rep.status) {
+        FormStatus.GOOD -> Triple(
+            StatusSuccess,
+            "Good Posture",
+            if (rep.note.isNotBlank() && !rep.note.contains("ROM", ignoreCase = true)) rep.note else "Full leg extension & controlled lift."
+        )
+        FormStatus.REDUCED_ROM -> Triple(
+            StatusWarning,
+            "Partial Extension",
+            "Try lifting your leg a little higher to reach full extension."
+        )
+        FormStatus.IRREGULAR_TEMPO -> Triple(
+            CoralAccent,
+            "Fast Pace",
+            "Slow down and pause for 1-2 seconds at peak extension."
+        )
+        FormStatus.LOW_CONFIDENCE -> Triple(
+            StatusError,
+            "Position Warning",
+            "Keep side profile fully visible in camera frame."
+        )
     }
 
     Surface(
@@ -214,7 +317,10 @@ fun RepDetailRow(rep: RepDetail) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Surface(
                     shape = CircleShape,
                     color = statusColor.copy(alpha = 0.2f),
@@ -231,12 +337,12 @@ fun RepDetailRow(rep: RepDetail) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Max Angle: ${rep.maxAngle.toInt()}°",
+                        text = statusTitle,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = rep.note,
+                        text = userAdvice,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -248,7 +354,7 @@ fun RepDetailRow(rep: RepDetail) {
                 color = statusColor.copy(alpha = 0.15f)
             ) {
                 Text(
-                    text = statusText,
+                    text = statusTitle,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = statusColor

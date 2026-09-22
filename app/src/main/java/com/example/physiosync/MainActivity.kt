@@ -191,11 +191,17 @@ class MainActivity : ComponentActivity() {
                                         FormFlag.IRREGULAR_TEMPO -> FormStatus.IRREGULAR_TEMPO
                                         FormFlag.LOW_CONFIDENCE -> FormStatus.LOW_CONFIDENCE
                                     }
+                                    val userNote = when (detail.formFlag) {
+                                        FormFlag.GOOD -> "Full leg extension & controlled lift."
+                                        FormFlag.REDUCED_ROM -> "Partial lift — Aim to extend a little higher next time."
+                                        FormFlag.IRREGULAR_TEMPO -> "Fast pace — Slow down and hold at peak for 1-2s."
+                                        FormFlag.LOW_CONFIDENCE -> "Camera view obscured — Keep side profile centered."
+                                    }
                                     RepDetail(
                                         repNumber = detail.repIndex,
                                         maxAngle = detail.peakAngle,
                                         status = status,
-                                        note = detail.formFlag.description
+                                        note = userNote
                                     )
                                 }
 
@@ -212,7 +218,7 @@ class MainActivity : ComponentActivity() {
                                         averageAngle = avgAngle,
                                         sessionDurationSeconds = (sessionState.sessionDurationMs / 1000).toInt(),
                                         repDetails = if (repDetails.isNotEmpty()) repDetails else listOf(
-                                            RepDetail(1, 170f, FormStatus.GOOD, "Sample rep - excellent ROM")
+                                            RepDetail(1, 170f, FormStatus.GOOD, "Full leg extension & controlled lift.")
                                         )
                                     ),
                                     onDoneClicked = {
