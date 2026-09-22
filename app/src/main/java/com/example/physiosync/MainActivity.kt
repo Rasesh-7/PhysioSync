@@ -136,6 +136,16 @@ class MainActivity : ComponentActivity() {
                                             ClinicianDashboardScreen(
                                                 viewModel = dashboardViewModel,
                                                 onToggleView = { currentScreen = "PATIENT" },
+                                                cameraContent = {
+                                                    SkeletonOverlay(
+                                                        poseFrame = currentPoseFrame,
+                                                        imageWidth = frameWidth,
+                                                        imageHeight = frameHeight,
+                                                        minConfidence = exerciseConfig.minKeypointConfidence,
+                                                        isFrontCamera = cameraManager.isFrontCamera,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                },
                                                 modifier = Modifier.fillMaxSize()
                                             )
                                         } else {

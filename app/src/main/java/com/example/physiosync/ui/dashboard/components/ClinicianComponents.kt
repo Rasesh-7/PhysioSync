@@ -1,28 +1,30 @@
 package com.example.physiosync.ui.dashboard.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,7 +32,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,12 +49,14 @@ import com.example.physiosync.core.model.SessionState
 import com.example.physiosync.ui.dashboard.ClinicianLogEntry
 import com.example.physiosync.ui.dashboard.LogSeverity
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
 
-// Clinician Dashboard Theme Colors
-val ClinicianDarkBg = Color(0xFF0F172A)
-val ClinicianCardBg = Color(0xFF1E293B)
-val ClinicianCardBorder = Color(0xFF334155)
-val ClinicianAccentCyan = Color(0xFF06B6D4)
+// Clinician Dashboard Theme Colors (Glassmorphic Dark Theme)
+val ClinicianDarkBg = Color(0xFF0B132B)
+val ClinicianCardBg = Color(0xFF1C2541).copy(alpha = 0.95f)
+val ClinicianCardBorder = Color(0xFF3A506B).copy(alpha = 0.6f)
+val ClinicianAccentCyan = Color(0xFF00E5FF)
 val ClinicianGoodGreen = Color(0xFF10B981)
 val ClinicianWarningAmber = Color(0xFFF59E0B)
 val ClinicianAlertRed = Color(0xFFEF4444)
@@ -57,12 +66,13 @@ val ClinicianMutedText = Color(0xFF94A3B8)
 fun ClinicianHeader(
     exerciseName: String,
     sessionState: SessionState,
+    onToggleView: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val statusText = when {
         sessionState.isCompleted -> "COMPLETED"
         sessionState.isPaused -> "PAUSED"
-        sessionState.isSessionActive -> "LIVE SESSION"
+        sessionState.isSessionActive -> "LIVE MONITORING"
         else -> "READY"
     }
 
@@ -73,11 +83,7 @@ fun ClinicianHeader(
         else -> ClinicianMutedText
     }
 
-    val elapsedSeconds = if (sessionState.sessionStartTimeMs > 0 && sessionState.isSessionActive) {
-        ((System.currentTimeMillis() - sessionState.sessionStartTimeMs) / 1000).coerceAtLeast(0)
-    } else {
-        sessionState.sessionDurationMs / 1000
-    }
+    val elapsedSeconds = sessionState.sessionDurationMs / 1000
     val minutes = elapsedSeconds / 60
     val seconds = elapsedSeconds % 60
     val durationFormatted = String.format(Locale.US, "%02d:%02d", minutes, seconds)
@@ -85,25 +91,33 @@ fun ClinicianHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(ClinicianCardBg, RoundedCornerShape(16.dp))
-            .border(1.dp, ClinicianCardBorder, RoundedCornerShape(16.dp))
-            .padding(16.dp),
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color(0xFF1E293B),
+                        Color(0xFF0F172A)
+                    )
+                ),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .border(1.dp, ClinicianAccentCyan.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(
-                text = "CLINICIAN TELEMETRY",
+                text = "PHYSIOSYNC CLINICIAN DASHBOARD",
                 color = ClinicianAccentCyan,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                letterSpacing = 1.2.sp
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = exerciseName,
                 color = Color.White,
-                fontSize = 20.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -112,8 +126,9 @@ fun ClinicianHeader(
             // Timer Badge
             Box(
                 modifier = Modifier
-                    .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .background(Color(0xFF0B132B), RoundedCornerShape(10.dp))
+                    .border(1.dp, Color(0xFF334155), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = durationFormatted,
@@ -124,14 +139,14 @@ fun ClinicianHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             // Live Status Indicator
             Box(
                 modifier = Modifier
-                    .background(statusColor.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                    .border(1.dp, statusColor, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .background(statusColor.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                    .border(1.dp, statusColor.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -149,6 +164,229 @@ fun ClinicianHeader(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Camera View Toggle Button
+            Button(
+                onClick = onToggleView,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ClinicianAccentCyan.copy(alpha = 0.2f),
+                    contentColor = ClinicianAccentCyan
+                ),
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ClinicianAccentCyan)
+            ) {
+                Text(text = "Patient View", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun CameraViewportPipCard(
+    modifier: Modifier = Modifier,
+    cameraContent: @Composable (BoxScope.() -> Unit)? = null
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Black),
+        border = CardDefaults.outlinedCardBorder().copy(brush = Brush.verticalGradient(
+            colors = listOf(ClinicianAccentCyan.copy(alpha = 0.6f), ClinicianAccentCyan.copy(alpha = 0.1f))
+        ))
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            cameraContent?.invoke(this)
+
+            // Header Pill overlay
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(10.dp)
+                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(ClinicianGoodGreen)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "LIVE CAMERA & POSE PIP",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun KneeAngleGaugeCard(
+    currentAngle: Float,
+    targetMin: Float,
+    targetMax: Float,
+    modifier: Modifier = Modifier
+) {
+    val isInTarget = currentAngle in targetMin..targetMax
+    val angleColor by animateColorAsState(
+        targetValue = if (isInTarget) ClinicianGoodGreen else ClinicianAccentCyan,
+        animationSpec = tween(250),
+        label = "angleColor"
+    )
+
+    val animatedAngle by animateFloatAsState(
+        targetValue = currentAngle.coerceIn(60f, 180f),
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "animatedAngle"
+    )
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = ClinicianCardBg),
+        shape = RoundedCornerShape(18.dp),
+        border = CardDefaults.outlinedCardBorder().copy(brush = Brush.verticalGradient(
+            colors = listOf(ClinicianCardBorder, ClinicianCardBorder.copy(alpha = 0.3f))
+        ))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "KNEE ANGLE GAUGING",
+                    color = ClinicianMutedText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+                Text(
+                    text = "Target: ${targetMin.toInt()}°–${targetMax.toInt()}°",
+                    color = ClinicianAccentCyan,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Radial Arc Gauge Canvas
+                Canvas(modifier = Modifier.size(170.dp)) {
+                    val strokeWidth = 14.dp.toPx()
+                    val diameter = size.minDimension - strokeWidth
+                    val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
+                    val arcSize = Size(diameter, diameter)
+
+                    // Arc angles: 135° to 405° (270° total sweep, covering 60° to 180° knee ROM)
+                    val startArcAngle = 135f
+                    val totalSweep = 270f
+
+                    // 1. Background Arc Track
+                    drawArc(
+                        color = Color(0xFF0F172A),
+                        startAngle = startArcAngle,
+                        sweepAngle = totalSweep,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+
+                    // 2. Target ROM Highlight Segment (targetMin to targetMax)
+                    val targetMinRatio = ((targetMin - 60f) / 120f).coerceIn(0f, 1f)
+                    val targetMaxRatio = ((targetMax - 60f) / 120f).coerceIn(0f, 1f)
+                    val targetStartAngle = startArcAngle + (targetMinRatio * totalSweep)
+                    val targetSweep = (targetMaxRatio - targetMinRatio) * totalSweep
+
+                    drawArc(
+                        color = ClinicianGoodGreen.copy(alpha = 0.25f),
+                        startAngle = targetStartAngle,
+                        sweepAngle = targetSweep,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth + 2.dp.toPx(), cap = StrokeCap.Butt)
+                    )
+
+                    // 3. Live Value Active Arc Sweep
+                    val liveRatio = ((animatedAngle - 60f) / 120f).coerceIn(0f, 1f)
+                    val liveSweep = liveRatio * totalSweep
+
+                    drawArc(
+                        color = angleColor,
+                        startAngle = startArcAngle,
+                        sweepAngle = liveSweep,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+
+                    // 4. Pointer Glowing Knob at current angle position
+                    val pointerAngleRad = Math.toRadians((startArcAngle + liveSweep).toDouble())
+                    val radius = diameter / 2
+                    val center = Offset(size.width / 2, size.height / 2)
+                    val pointerX = (center.x + radius * cos(pointerAngleRad)).toFloat()
+                    val pointerY = (center.y + radius * sin(pointerAngleRad)).toFloat()
+
+                    drawCircle(
+                        color = Color.White,
+                        radius = 7.dp.toPx(),
+                        center = Offset(pointerX, pointerY)
+                    )
+                    drawCircle(
+                        color = angleColor,
+                        radius = 4.dp.toPx(),
+                        center = Offset(pointerX, pointerY)
+                    )
+                }
+
+                // Center Angle Readout Text
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = String.format(Locale.US, "%.1f°", currentAngle),
+                        color = angleColor,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = if (isInTarget) ClinicianGoodGreen.copy(alpha = 0.2f) else Color(0xFF0F172A),
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .border(0.5.dp, if (isInTarget) ClinicianGoodGreen else ClinicianMutedText, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (isInTarget) "PEAK ROM REACHED" else "KNEE EXTENDING",
+                            color = if (isInTarget) ClinicianGoodGreen else ClinicianMutedText,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -164,8 +402,10 @@ fun TelemetryMetricCard(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = ClinicianCardBg),
-        shape = RoundedCornerShape(14.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
+        shape = RoundedCornerShape(16.dp),
+        border = CardDefaults.outlinedCardBorder().copy(brush = Brush.linearGradient(
+            colors = listOf(accentColor.copy(alpha = 0.5f), ClinicianCardBorder)
+        ))
     ) {
         Column(
             modifier = Modifier.padding(14.dp)
@@ -174,8 +414,8 @@ fun TelemetryMetricCard(
                 text = title.uppercase(Locale.ROOT),
                 color = ClinicianMutedText,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.6.sp
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
@@ -196,92 +436,6 @@ fun TelemetryMetricCard(
 }
 
 @Composable
-fun KneeAngleTelemetryCard(
-    currentAngle: Float,
-    targetMin: Float,
-    targetMax: Float,
-    modifier: Modifier = Modifier
-) {
-    val isInTarget = currentAngle in targetMin..targetMax
-    val angleColor by animateColorAsState(
-        targetValue = if (isInTarget) ClinicianGoodGreen else ClinicianAccentCyan,
-        animationSpec = tween(200),
-        label = "angleColor"
-    )
-
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = ClinicianCardBg),
-        shape = RoundedCornerShape(14.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "KNEE JOINT ANGLE",
-                    color = ClinicianMutedText,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Target: ${targetMin.toInt()}°–${targetMax.toInt()}°",
-                    color = ClinicianMutedText,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = String.format(Locale.US, "%.1f°", currentAngle),
-                    color = angleColor,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black
-                )
-                if (isInTarget) {
-                    Box(
-                        modifier = Modifier
-                            .padding(bottom = 6.dp)
-                            .background(ClinicianGoodGreen.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "TARGET REACHED",
-                            color = ClinicianGoodGreen,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Normalized angle progress indicator (90° to 180°)
-            val normalizedProgress = ((currentAngle - 90f) / 90f).coerceIn(0f, 1f)
-            LinearProgressIndicator(
-                progress = { normalizedProgress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = angleColor,
-                trackColor = Color(0xFF0F172A)
-            )
-        }
-    }
-}
-
-@Composable
 fun ExerciseStatePipeline(
     currentState: ExerciseState,
     modifier: Modifier = Modifier
@@ -296,15 +450,18 @@ fun ExerciseStatePipeline(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = ClinicianCardBg),
-        shape = RoundedCornerShape(14.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
+        shape = RoundedCornerShape(16.dp),
+        border = CardDefaults.outlinedCardBorder().copy(brush = Brush.verticalGradient(
+            colors = listOf(ClinicianCardBorder, ClinicianCardBorder.copy(alpha = 0.3f))
+        ))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
-                text = "BIOMECHANICAL STATE MACHINE",
+                text = "BIOMECHANICAL STATE PIPELINE",
                 color = ClinicianMutedText,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -327,14 +484,14 @@ fun ExerciseStatePipeline(
                         modifier = Modifier
                             .background(
                                 color = if (isActive) stateColor.copy(alpha = 0.25f) else Color(0xFF0F172A),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(10.dp)
                             )
                             .border(
                                 width = if (isActive) 1.5.dp else 0.5.dp,
                                 color = if (isActive) stateColor else ClinicianCardBorder,
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(10.dp)
                             )
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -372,9 +529,9 @@ fun FormStatusBadge(
 
     Box(
         modifier = modifier
-            .background(color.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-            .border(1.dp, color, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .background(color.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+            .border(1.dp, color, RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
             text = label,
@@ -393,15 +550,18 @@ fun RepetitionBreakdownList(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = ClinicianCardBg),
-        shape = RoundedCornerShape(14.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
+        shape = RoundedCornerShape(16.dp),
+        border = CardDefaults.outlinedCardBorder().copy(brush = Brush.verticalGradient(
+            colors = listOf(ClinicianCardBorder, ClinicianCardBorder.copy(alpha = 0.3f))
+        ))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 text = "REPETITION BREAKDOWN (${completedReps.size})",
                 color = ClinicianMutedText,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -410,21 +570,20 @@ fun RepetitionBreakdownList(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 20.dp),
+                        .padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No completed repetitions recorded yet",
+                        text = "Awaiting rep completion...",
                         color = ClinicianMutedText,
                         fontSize = 13.sp
                     )
                 }
             } else {
-                // Table header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF0F172A), RoundedCornerShape(6.dp))
+                        .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -436,16 +595,19 @@ fun RepetitionBreakdownList(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                LazyColumn(
-                    modifier = Modifier.height(140.dp)
+                // Display latest up to 4 completed reps cleanly without nested LazyColumn scroll conflict
+                val displayReps = completedReps.takeLast(4).reversed()
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(completedReps.reversed()) { rep ->
+                    displayReps.forEach { rep ->
                         val isGood = rep.formFlag == FormFlag.GOOD
                         val statusColor = if (isGood) ClinicianGoodGreen else ClinicianWarningAmber
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .background(Color(0xFF0F172A).copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                                 .padding(horizontal = 10.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -470,15 +632,18 @@ fun RealTimeEventLog(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = ClinicianCardBg),
-        shape = RoundedCornerShape(14.dp),
-        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(ClinicianCardBorder))
+        shape = RoundedCornerShape(16.dp),
+        border = CardDefaults.outlinedCardBorder().copy(brush = Brush.verticalGradient(
+            colors = listOf(ClinicianCardBorder, ClinicianCardBorder.copy(alpha = 0.3f))
+        ))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
                 text = "REAL-TIME CLINICAL EVENT FEED",
                 color = ClinicianMutedText,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -487,7 +652,7 @@ fun RealTimeEventLog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 20.dp),
+                        .padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -497,10 +662,12 @@ fun RealTimeEventLog(
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.height(140.dp)
+                // Display top 3 latest event entries cleanly without scroll conflict
+                val displayLogs = eventLogs.take(3)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(eventLogs) { entry ->
+                    displayLogs.forEach { entry ->
                         val badgeColor = when (entry.severity) {
                             LogSeverity.INFO -> ClinicianAccentCyan
                             LogSeverity.SUCCESS -> ClinicianGoodGreen
@@ -511,15 +678,15 @@ fun RealTimeEventLog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.Top
+                                .background(Color(0xFF0F172A).copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = entry.timeFormatted,
                                 color = ClinicianMutedText,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(top = 1.dp)
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(
@@ -527,20 +694,19 @@ fun RealTimeEventLog(
                                     .size(6.dp)
                                     .clip(CircleShape)
                                     .background(badgeColor)
-                                    .align(Alignment.CenterVertically)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = entry.title,
                                     color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = entry.detail,
                                     color = ClinicianMutedText,
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -570,14 +736,6 @@ fun ClinicianControlBar(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Switch to Camera View
-        OutlinedButton(
-            onClick = onToggleView,
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Text("Camera View", color = ClinicianAccentCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        }
-
         // Pause / Resume
         Button(
             onClick = onPauseToggle,
@@ -604,15 +762,25 @@ fun ClinicianControlBar(
                 contentColor = Color.White
             )
         ) {
-            Text("End Session", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "End Session",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
 
-        // Restart
+        // Restart Session
         OutlinedButton(
             onClick = onRestart,
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(10.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, ClinicianMutedText)
         ) {
-            Text("Restart", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Restart",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
